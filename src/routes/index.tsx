@@ -129,7 +129,7 @@ function Chat({ selected, confidence, onNext }: { selected: string; confidence: 
     setInput("");
     setTyping(true);
     setTimeout(() => {
-      setMsgs((m) => [...m, { role: "ai", text: AI_REPLIES[idx] }]);
+      setMsgs((m) => [...m, { role: "ai", text: AI_REPLIES[idx] ?? "" }]);
       setTyping(false);
       setUserCount(idx + 1);
     }, 1500);
