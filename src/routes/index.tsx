@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle, Bot, BrainCircuit, CheckCircle2, Lightbulb, Send, ShieldAlert, TrendingUp, User, XCircle,
+  AlertTriangle, Bot, BrainCircuit, CheckCircle2, Lightbulb, LogIn, Quote, RotateCcw, Send, User, XCircle,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -18,24 +18,31 @@ export const Route = createFileRoute("/")({
   component: App,
 });
 
-type Screen = "pre-test" | "chat" | "post-test" | "dashboard";
+type Screen = "login" | "pre-test" | "chat" | "post-test" | "success";
 type Msg = { role: "ai" | "user"; text: string };
 
-const OPTIONS = [
+const PRE_OPTIONS = [
   { k: "A", t: "El for se usa cuando conoces el número de iteraciones; el while cuando depende de una condición." },
   { k: "B", t: "No hay diferencia, ambos se usan exactamente para lo mismo" },
   { k: "C", t: "El while siempre se ejecuta al menos una vez, el for nunca." },
 ];
+const POST_OPTIONS = [
+  { k: "A", t: "Un bucle for, porque siempre recorre un número fijo de líneas." },
+  { k: "B", t: "Un bucle while, porque la salida depende de una condición (encontrar la línea vacía) y no de un conteo conocido." },
+  { k: "C", t: "Da igual; cualquier bucle produce el mismo resultado." },
+];
+const AI_OPENING =
+  "Modo Socrático Activado. Noté que fallaste en la pregunta. ¿Qué concepto exacto te está bloqueando?";
 const AI_REPLIES = [
   "Esa es la parte que quiero que razones. Piensa en el límite de iteraciones: ¿qué bucle usas cuando no sabes cuántas veces se repetirá el código?",
-  "Exacto. Ahora reformula cuándo es peligroso usar un while sin condición de salida clara.",
+  "Exacto. Ahora reformula con tus palabras cuándo es peligroso usar un while sin condición de salida clara.",
 ];
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState<Screen>("pre-test");
+  const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [selected, setSelected] = useState("B");
   const [confidence, setConfidence] = useState(5);
-  const steps: Screen[] = ["pre-test", "chat", "post-test", "dashboard"];
+  const steps: Screen[] = ["login", "pre-test", "chat", "post-test", "success"];
 
   return (
     <div className="min-h-screen bg-background text-muted-foreground">
@@ -52,19 +59,13 @@ function App() {
         </div>
       </header>
       <main key={currentScreen} className="mx-auto max-w-6xl animate-fade-up px-4 py-10">
+        {currentScreen === "login" && <Login onNext={() => setCurrentScreen("pre-test")} />}
         {currentScreen === "pre-test" && (
           <PreTest selected={selected} setSelected={setSelected} confidence={confidence} setConfidence={setConfidence} onNext={() => setCurrentScreen("chat")} />
         )}
         {currentScreen === "chat" && <Chat selected={selected} confidence={confidence} onNext={() => setCurrentScreen("post-test")} />}
-        {currentScreen === "post-test" && (
-          <div className="mx-auto flex max-w-xl flex-col items-center rounded-2xl border border-border bg-card p-10 text-center">
-            <CheckCircle2 className="h-24 w-24 text-success" />
-            <h1 className="mt-6 text-3xl font-bold text-foreground">¡Aprendizaje Validado!</h1>
-            <p className="mt-3">Resolviste la variante B del problema sin asistencia de IA.</p>
-            <PrimaryBtn className="mt-8" onClick={() => setCurrentScreen("dashboard")}>Ver Panel del Profesor (Simulación)</PrimaryBtn>
-          </div>
-        )}
-        {currentScreen === "dashboard" && <Dashboard />}
+        {currentScreen === "post-test" && <PostTest onNext={() => setCurrentScreen("success")} />}
+        {currentScreen === "success" && <Success onNext={() => setCurrentScreen("login")} />}
       </main>
     </div>
   );
@@ -79,6 +80,55 @@ function PrimaryBtn({ className = "", ...p }: React.ButtonHTMLAttributes<HTMLBut
   );
 }
 
+function Login({ onNext }: { onNext: () => void }) {
+  const [pin, setPin] = useState("");
+  const [alias, setAlias] = useState("");
+  return (
+    <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-6 sm:p-10">
+      <h1 className="text-center text-3xl font-bold text-foreground">Unirse a la Sesión</h1>
+      <form
+        className="mt-8 space-y-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onNext();
+        }}
+      >
+        <div>
+          <label htmlFor="pin" className="text-sm">Código de Clase (PIN)</label>
+          <input
+            id="pin"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            placeholder="ej. 847291"
+            className="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+          />
+        </div>
+        <div>
+          <label htmlFor="alias" className="text-sm">Alias o Código UNI</label>
+          <input
+            id="alias"
+            value={alias}
+            onChange={(e) => setAlias(e.target.value)}
+            placeholder="ej. 20244108J"
+            className="mt-2 w-full rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
+          />
+        </div>
+        <PrimaryBtn type="submit" className="w-full"><LogIn className="h-5 w-5" />Entrar</PrimaryBtn>
+      </form>
+    </div>
+  );
+}
+
+function OptionCard({ option, on, onClick }: { option: { k: string; t: string }; on: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`flex w-full items-start gap-4 rounded-xl border p-4 text-left transition ${on ? "border-primary bg-accent shadow-glow" : "border-border hover:border-primary/50"}`}>
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold ${on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>{option.k}</span>
+      <span className={on ? "text-foreground" : ""}>{option.t}</span>
+    </button>
+  );
+}
+
 function PreTest({ selected, setSelected, confidence, setConfidence, onNext }: {
   selected: string; setSelected: (s: string) => void; confidence: number; setConfidence: (n: number) => void; onNext: () => void;
 }) {
@@ -87,20 +137,13 @@ function PreTest({ selected, setSelected, confidence, setConfidence, onNext }: {
       <h1 className="text-3xl font-bold text-foreground">Diagnóstico Inicial</h1>
       <p className="mt-6 text-lg text-foreground">¿Cuál es la diferencia estructural principal entre un bucle while y un for?</p>
       <div className="mt-6 space-y-3">
-        {OPTIONS.map((o) => {
-          const on = selected === o.k;
-          return (
-            <button key={o.k} onClick={() => setSelected(o.k)}
-              className={`flex w-full items-start gap-4 rounded-xl border p-4 text-left transition ${on ? "border-primary bg-accent shadow-glow" : "border-border hover:border-primary/50"}`}>
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold ${on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>{o.k}</span>
-              <span className={on ? "text-foreground" : ""}>{o.t}</span>
-            </button>
-          );
-        })}
+        {PRE_OPTIONS.map((o) => (
+          <OptionCard key={o.k} option={o} on={selected === o.k} onClick={() => setSelected(o.k)} />
+        ))}
       </div>
       <div className="mt-8">
         <div className="flex justify-between text-sm">
-          <label htmlFor="conf">Nivel de confianza en tu respuesta</label>
+          <label htmlFor="conf">Nivel de confianza en tu respuesta (1=Bajo, 5=Alto)</label>
           <span className="font-semibold text-primary">{confidence}/5</span>
         </div>
         <input id="conf" type="range" min={1} max={5} value={confidence} onChange={(e) => setConfidence(+e.target.value)} className="mt-3 w-full accent-primary" />
@@ -111,9 +154,7 @@ function PreTest({ selected, setSelected, confidence, setConfidence, onNext }: {
 }
 
 function Chat({ selected, confidence, onNext }: { selected: string; confidence: number; onNext: () => void }) {
-  const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "ai", text: "Modo Socrático Activado. Noté que fallaste en la pregunta sobre bucles. ¿Qué concepto te está bloqueando?" },
-  ]);
+  const [msgs, setMsgs] = useState<Msg[]>([{ role: "ai", text: AI_OPENING }]);
   const [input, setInput] = useState("");
   const [userCount, setUserCount] = useState(0);
   const [typing, setTyping] = useState(false);
@@ -134,7 +175,7 @@ function Chat({ selected, confidence, onNext }: { selected: string; confidence: 
       setUserCount(idx + 1);
     }, 1500);
   };
-  const answer = OPTIONS.find((o) => o.k === selected)!;
+  const answer = PRE_OPTIONS.find((o) => o.k === selected)!;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
@@ -149,7 +190,7 @@ function Chat({ selected, confidence, onNext }: { selected: string; confidence: 
         </div>
         <div className="flex gap-3 rounded-2xl border border-primary/40 bg-accent p-5 text-foreground">
           <AlertTriangle className="h-5 w-5 shrink-0 text-primary" />
-          <p>Brecha conceptual detectada. Debes interactuar con el Tutor Socrático para avanzar.</p>
+          <p>Brecha conceptual detectada. Debes interactuar con el Tutor Socrático para desbloquear el examen final.</p>
         </div>
       </aside>
       <section className="flex flex-col rounded-2xl border border-border bg-card">
@@ -191,49 +232,33 @@ function Chat({ selected, confidence, onNext }: { selected: string; confidence: 
   );
 }
 
-function Dashboard() {
-  const stats = [
-    { v: "85%", l: "Fallo Pre-Test", icon: XCircle, c: "text-foreground" },
-    { v: "2.4", l: "Pistas Promedio", icon: Lightbulb, c: "text-foreground" },
-    { v: "92%", l: "Conversión Post-Test", icon: TrendingUp, c: "text-success" },
-  ];
-  const rows = [
-    { n: "Lincoln Haziel Chagua Bustos (20244108J)", p: 2, i: 1, e: "Validado", ok: true },
-    { n: "Alumno Prueba B", p: 4, i: 3, e: "Requiere Humano", ok: false },
-  ];
+function PostTest({ onNext }: { onNext: () => void }) {
+  const [selected, setSelected] = useState<string | null>(null);
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-foreground">Panel Analítico del Docente</h1>
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        {stats.map((s) => (
-          <div key={s.l} className={`rounded-2xl border bg-card p-6 ${s.c === "text-success" ? "border-success/50" : "border-border"}`}>
-            <s.icon className={`h-5 w-5 ${s.c === "text-success" ? "text-success" : "text-primary"}`} />
-            <p className={`mt-4 text-4xl font-bold ${s.c}`}>{s.v}</p>
-            <p className="mt-1">{s.l}</p>
-          </div>
+    <div className="mx-auto max-w-2xl rounded-2xl border border-border bg-card p-6 sm:p-10">
+      <h1 className="text-3xl font-bold text-foreground">Validación de Aprendizaje (Sin IA)</h1>
+      <p className="mt-6 text-lg text-foreground">Si necesitas leer un archivo de texto hasta encontrar una línea vacía, ¿qué bucle es estructuralmente más seguro?</p>
+      <div className="mt-6 space-y-3">
+        {POST_OPTIONS.map((o) => (
+          <OptionCard key={o.k} option={o} on={selected === o.k} onClick={() => setSelected(o.k)} />
         ))}
       </div>
-      <div className="mt-8 overflow-x-auto rounded-2xl border border-border bg-card">
-        <table className="w-full min-w-[600px] text-left">
-          <thead className="border-b border-border text-xs uppercase tracking-wider">
-            <tr>{["Estudiante", "Pistas Usadas", "Intentos de Copiar", "Estado"].map((h) => <th key={h} className="px-6 py-4 font-medium">{h}</th>)}</tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.n} className="border-b border-border last:border-0 hover:bg-secondary/50">
-                <td className="px-6 py-4 text-foreground">{r.n}</td>
-                <td className="px-6 py-4">{r.p}</td>
-                <td className="px-6 py-4">{r.i}</td>
-                <td className={`px-6 py-4 font-semibold ${r.ok ? "text-success" : "text-destructive"}`}>
-                  <span className="inline-flex items-center gap-1.5">
-                    {r.ok ? <CheckCircle2 className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}{r.e}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <PrimaryBtn className="mt-8 w-full" disabled={!selected} onClick={onNext}>Enviar Respuesta Final</PrimaryBtn>
+    </div>
+  );
+}
+
+function Success({ onNext }: { onNext: () => void }) {
+  return (
+    <div className="mx-auto flex max-w-xl flex-col items-center rounded-2xl border border-border bg-card p-10 text-center">
+      <CheckCircle2 className="h-24 w-24 text-success" />
+      <h1 className="mt-6 text-3xl font-bold text-foreground">¡Aprendizaje Validado!</h1>
+      <p className="mt-3">Superaste el obstáculo cognitivo por tu cuenta.</p>
+      <div className="mt-8 flex w-full gap-3 rounded-2xl border border-primary/40 bg-accent p-6 text-left">
+        <Quote className="h-6 w-6 shrink-0 text-primary" />
+        <p className="italic text-foreground">"El verdadero aprendizaje ocurre cuando la IA te hace pensar, no cuando piensa por ti."</p>
       </div>
+      <PrimaryBtn className="mt-8" onClick={onNext}><RotateCcw className="h-5 w-5" />Volver al inicio</PrimaryBtn>
     </div>
   );
 }
