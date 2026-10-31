@@ -280,10 +280,9 @@ function Chat({
   const [userCount, setUserCount] = useState(0);
   const [typing, setTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
-  useEffect(
-    () => endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
-    [msgs, typing],
-  );
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [msgs, typing]);
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault();

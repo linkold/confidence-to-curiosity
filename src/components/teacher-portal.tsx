@@ -165,6 +165,9 @@ export function NewCourseWizard() {
         correct: 0,
       },
     ]);
+
+  const addQuestion = () =>
+    setQuestions((current) => [...current, { prompt: "", options: ["", "", "", ""], correct: 0 }]);
   const canContinue =
     step !== 0 ||
     (courseName.trim() && centralTopic.trim() && subtopics.length >= 2 && Number(studentCount) > 0);
@@ -318,10 +321,16 @@ export function NewCourseWizard() {
                 Propón preguntas y edita sus alternativas antes de publicarlas.
               </p>
             </div>
-            <Button type="button" variant="outline" onClick={proposeQuestions}>
-              <Sparkles />
-              Proponer preguntas
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" onClick={addQuestion}>
+                <Plus />
+                Agregar pregunta
+              </Button>
+              <Button type="button" variant="outline" onClick={proposeQuestions}>
+                <Sparkles />
+                Proponer preguntas
+              </Button>
+            </div>
             {questions.map((question, questionIndex) => (
               <div key={questionIndex} className="space-y-3 rounded-lg border border-border p-4">
                 <div className="flex items-start gap-2">
