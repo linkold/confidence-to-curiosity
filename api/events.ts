@@ -29,6 +29,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(201).json({ id });
   } catch (error) {
     console.error("Error al guardar evento en Neon:", error);
-    return res.status(502).json({ error: "No se pudo guardar el evento" });
+    const databaseError = error as { code?: string };
+    return res.status(502).json({
+      error:
+        databaseError.code === "42P01"
+          ? "Faltan las tablas de Neon. Ejecuta neon/schema.sql"
+          : "No se pudo guardar el evento en Neon",
+      code: databaseError.code ?? "NEON_ERROR",
+    });
   }
 }

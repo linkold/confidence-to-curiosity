@@ -34,7 +34,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ ...course, verified: true });
     } catch (error) {
       console.error("Error al validar curso en Neon:", error);
-      return res.status(502).json({ error: "No se pudo validar el curso" });
+      const databaseError = error as { code?: string };
+      return res.status(502).json({
+        error:
+          databaseError.code === "42P01"
+            ? "Faltan las tablas de Neon. Ejecuta neon/schema.sql"
+            : "No se pudo validar el curso en Neon",
+        code: databaseError.code ?? "NEON_ERROR",
+      });
     }
   }
 
@@ -85,6 +92,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(201).json({ id: data?.id, sessionCode: data?.sessionCode, verified });
   } catch (error) {
     console.error("Error al crear curso en Neon:", error);
-    return res.status(502).json({ error: "No se pudo crear el curso" });
+    const databaseError = error as { code?: string };
+    return res.status(502).json({
+      error:
+        databaseError.code === "42P01"
+          ? "Faltan las tablas de Neon. Ejecuta neon/schema.sql"
+          : "No se pudo crear el curso en Neon",
+      code: databaseError.code ?? "NEON_ERROR",
+    });
   }
 }

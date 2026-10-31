@@ -20,7 +20,7 @@ async function readJson<T>(response: Response) {
     }
     if (response.status >= 500) {
       throw new Error(
-        `La función /api respondió ${response.status}. Revisa los logs de Vercel y verifica DATABASE_URL y GROQ_API_KEY.`,
+        `La función /api respondió ${response.status}. Revisa los logs de Vercel y verifica DATABASE_URL (o POSTGRES_URL) y GROQ_API_KEY.`,
       );
     }
     throw new Error(
