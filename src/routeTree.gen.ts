@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HomeRouteImport } from './routes/home'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as TeacherRouteImport } from './routes/teacher'
 import { Route as JoinIndexRouteImport } from './routes/join.index'
@@ -24,6 +25,11 @@ import { Route as TeacherCourseIdRouteImport } from './routes/teacher.course.$id
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JoinRoute = JoinRouteImport.update({
@@ -79,6 +85,7 @@ const TeacherCourseIdRoute = TeacherCourseIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/home': typeof HomeRoute
   '/join': typeof JoinRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
   '/join/$id': typeof JoinIdRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/home': typeof HomeRoute
   '/join/$id': typeof JoinIdRoute
   '/s/$id': typeof SIdRoute
   '/teacher/monitor': typeof TeacherMonitorRoute
@@ -104,6 +112,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/home': typeof HomeRoute
   '/join': typeof JoinRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
   '/join/$id': typeof JoinIdRoute
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/home'
     | '/join'
     | '/teacher'
     | '/join/$id'
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/home'
     | '/join/$id'
     | '/s/$id'
     | '/teacher/monitor'
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/home'
     | '/join'
     | '/teacher'
     | '/join/$id'
@@ -157,6 +169,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HomeRoute: typeof HomeRoute
   JoinRoute: typeof JoinRouteWithChildren
   TeacherRoute: typeof TeacherRouteWithChildren
   SIdRoute: typeof SIdRoute
@@ -169,6 +182,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/join': {
@@ -277,6 +297,7 @@ const TeacherRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HomeRoute: HomeRoute,
   JoinRoute: JoinRouteWithChildren,
   TeacherRoute: TeacherRouteWithChildren,
   SIdRoute: SIdRoute,

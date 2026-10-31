@@ -1,0 +1,11 @@
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, BrainCircuit, GraduationCap, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export function HomePage() {
+  return <main className="mx-auto flex min-h-[calc(100vh-81px)] max-w-5xl items-center px-5 py-12 sm:px-8"><div className="w-full"><div className="mx-auto max-w-2xl text-center"><div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-accent text-primary"><BrainCircuit className="size-9" /></div><p className="mt-6 text-sm font-semibold uppercase tracking-[0.2em] text-primary">Aprendizaje que hace pensar</p><h1 className="mt-4 text-4xl font-bold tracking-tight text-foreground sm:text-6xl">Bienvenido a CogniCheck</h1><p className="mt-5 text-lg leading-8">Una plataforma con tutor socrático para diagnosticar, acompañar y validar el aprendizaje.</p></div><div className="mx-auto mt-12 grid max-w-3xl gap-5 md:grid-cols-2"><RoleCard role="student" title="Soy alumno" description="Únete a una sesión, resuelve tu diagnóstico y trabaja con el tutor socrático." href="/join" icon={UserRound} action="Entrar como alumno" /><RoleCard role="teacher" title="Soy profesor" description="Crea un curso, prepara preguntas y observa el progreso de tus alumnos." href="/teacher" icon={GraduationCap} action="Entrar como profesor" /></div></div></main>;
+}
+
+function RoleCard({ role, title, description, href, icon: Icon, action }: { role: "student" | "teacher"; title: string; description: string; href: "/join" | "/teacher"; icon: typeof UserRound; action: string }) {
+  return <article className={`rounded-xl border p-6 transition hover:-translate-y-1 hover:shadow-glow ${role === "student" ? "border-primary/40 bg-accent/40" : "border-border bg-card"}`}><div className={`flex size-12 items-center justify-center rounded-lg ${role === "student" ? "bg-primary text-primary-foreground" : "bg-secondary text-primary"}`}><Icon className="size-6" /></div><h2 className="mt-6 text-2xl font-semibold text-foreground">{title}</h2><p className="mt-3 min-h-14 leading-7">{description}</p><Button asChild className="mt-6 w-full"><Link to={href}>{action}<ArrowRight /></Link></Button></article>;
+}

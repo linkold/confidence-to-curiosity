@@ -3,6 +3,7 @@ import { Activity, ArrowRight, BarChart3, BookOpen, CheckCircle2, FileQuestion, 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePrototype } from "@/lib/prototype";
+import { createCourse } from "@/lib/backend";
 
 const WIZARD_STEPS = ["Curso y temas", "Material", "Preguntas", "Tutor", "Publicar"];
 
@@ -42,11 +43,20 @@ export function NewCourseWizard() {
   const [questionCount, setQuestionCount] = useState(2);
   const [language, setLanguage] = useState("Español");
   const [tone, setTone] = useState("Cercano y exigente");
+  const [publishing, setPublishing] = useState(false);
 
-  const next = () => {
+  const next = async () => {
     if (step === WIZARD_STEPS.length - 1) {
-      setGenerated(true);
-      navigate({ to: "/teacher/course/$id", params: { id: "847291" } });
+      setPublishing(true);
+      try {
+        const course = await createCourse({ name: config.topic, topics, material, questionVariants: questionCount, tutor: { tone, language, maxHints: config.friction } });
+        setGenerated(true);
+        navigate({ to: "/teacher/course/$id", params: { id: course.id } });
+      } catch (error) {
+        console.error("No se pudo publicar el curso:", error);
+      } finally {
+        setPublishing(false);
+      }
       return;
     }
     setStep((current) => current + 1);
@@ -62,7 +72,7 @@ export function NewCourseWizard() {
       {step === 2 && <div className="space-y-6"><div><h2 className="text-xl font-semibold text-foreground">Banco de preguntas</h2><p className="mt-2 text-sm">Genera variantes equivalentes por subtema y aprueba o edita cada una antes de publicar.</p></div><div className="flex items-center justify-between rounded-lg border border-border p-4"><div><p className="font-medium text-foreground">Variantes por subtema</p><p className="text-sm">Mínimo recomendado: 2</p></div><input type="number" min={2} max={5} value={questionCount} onChange={(e) => setQuestionCount(Math.max(2, Number(e.target.value)))} className="w-20 rounded-lg border border-input bg-background px-3 py-2 text-center text-foreground" /></div><Button type="button" variant="outline"><Sparkles />Generar banco de preguntas</Button><div className="space-y-3">{topics.slice(0, 3).map((topic) => <div key={topic} className="flex items-center justify-between rounded-lg border border-border p-4"><span className="text-foreground">{topic}</span><span className="flex items-center gap-1 text-sm text-success"><CheckCircle2 className="size-4" />{questionCount} variantes</span></div>)}</div></div>}
       {step === 3 && <div className="space-y-6"><div><h2 className="text-xl font-semibold text-foreground">Ajustes del tutor socrático</h2><p className="mt-2 text-sm">Define cómo acompañará la IA a tus alumnos.</p></div><div><label htmlFor="tone" className="text-sm font-medium text-foreground">Tono</label><select id="tone" value={tone} onChange={(e) => setTone(e.target.value)} className="mt-2 w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground"><option>Cercano y exigente</option><option>Formal y académico</option><option>Motivador</option></select></div><div><label htmlFor="language" className="text-sm font-medium text-foreground">Idioma</label><select id="language" value={language} onChange={(e) => setLanguage(e.target.value)} className="mt-2 w-full rounded-lg border border-input bg-background px-4 py-3 text-foreground"><option>Español</option><option>English</option></select></div><div><div className="flex justify-between"><label htmlFor="hints" className="text-sm font-medium text-foreground">Número máximo de pistas</label><output className="text-primary">{config.friction}</output></div><input id="hints" type="range" min={1} max={5} value={config.friction} onChange={(e) => setConfig({ ...config, friction: Number(e.target.value) })} className="mt-3 w-full accent-primary" /></div></div>}
       {step === 4 && <div className="space-y-6"><div><h2 className="text-xl font-semibold text-foreground">Publicar curso</h2><p className="mt-2 text-sm">Revisa la configuración y comparte el acceso con tus alumnos.</p></div><div className="rounded-lg border border-border bg-background p-5"><p className="text-sm text-muted-foreground">Curso</p><p className="mt-1 text-xl font-semibold text-foreground">{config.topic}</p><div className="mt-4 grid gap-3 text-sm sm:grid-cols-3"><span>{topics.length} subtemas</span><span>{questionCount} variantes por subtema</span><span>{tone} · {language}</span></div></div><div className="flex gap-3 rounded-lg border border-primary/30 bg-accent p-4"><QrCode className="size-5 shrink-0 text-primary" /><p className="text-sm text-foreground">Al publicar se generará un código de acceso y un QR para la sesión.</p></div></div>}
-      <div className="mt-8 flex justify-between gap-3 border-t border-border pt-6"><Button type="button" variant="ghost" disabled={step === 0} onClick={() => setStep((current) => current - 1)}>Atrás</Button><Button type="button" onClick={next}>{step === WIZARD_STEPS.length - 1 ? "Publicar curso" : "Continuar"}<ArrowRight /></Button></div>
+      <div className="mt-8 flex justify-between gap-3 border-t border-border pt-6"><Button type="button" variant="ghost" disabled={step === 0 || publishing} onClick={() => setStep((current) => current - 1)}>Atrás</Button><Button type="button" disabled={publishing} onClick={next}>{publishing ? "Publicando..." : step === WIZARD_STEPS.length - 1 ? "Publicar curso" : "Continuar"}<ArrowRight /></Button></div>
     </div>
   </section>;
 }

@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const groq = new Groq({ apiKey: groqApiKey });
     const completion = await groq.chat.completions.create({
-      model: process.env["GROQ_MODEL"] ?? "llama-3.1-8b-instant",
+      model: process.env["GROQ_MODEL"] ?? "openai/gpt-oss-120b",
       temperature: 0.4,
       max_tokens: 120,
       messages: [{ role: "system", content: SYSTEM_PROMPT }, ...historial.slice(-12)],

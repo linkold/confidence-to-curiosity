@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePrototype } from "@/lib/prototype";
+import { recordLearningEvent } from "@/lib/backend";
 import { Button } from "@/components/ui/button";
 import { assessAnswer, FINAL_QUESTIONS, type Question } from "@/lib/assessment";
 import {
@@ -40,9 +41,9 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
       <main key={currentScreen} className="mx-auto max-w-6xl animate-fade-up px-4 py-10">
         {currentScreen === "welcome" && <Welcome sessionId={sessionId} busy={busy} onNext={(alias) => { setStudent({alias: alias.trim() || "Alumno anónimo", validated:false}); transition("Sesión iniciada.", "pre-test"); }} />}
         {currentScreen === "pre-test" && (
-          <PreTest selected={selected} setSelected={setSelected} confidence={confidence} setConfidence={setConfidence} busy={busy} onNext={() => transition("Backend: Corrector de Máquina de Estados evaluando...", "chat")} />
+          <PreTest selected={selected} setSelected={setSelected} confidence={confidence} setConfidence={setConfidence} busy={busy} onNext={() => { void recordLearningEvent({ sessionCode: sessionId, eventType: "pre_test_submitted", ...(student?.alias ? { alias: student.alias } : {}), payload: { selected, confidence } }).catch(console.error); transition("Diagnóstico registrado.", "chat"); }} />
         )}
-        {currentScreen === "chat" && <Chat selected={selected} confidence={confidence} retry={retry} onNext={() => setCurrentScreen("post-test")} />}
+        {currentScreen === "chat" && <Chat sessionId={sessionId} selected={selected} confidence={confidence} retry={retry} onNext={() => setCurrentScreen("post-test")} />}
         {currentScreen === "post-test" && <PostTest onNext={() => { setStudent({alias: student?.alias ?? "Alumno anónimo", validated:true}); setStatus("Aprendizaje validado."); setCurrentScreen("progress"); }} onRetry={(question, answer) => {
           setStatus("Backend: Brecha conceptual detectada. Reiniciando ciclo socrático...");
           setRetry({ question, selected: answer });
@@ -135,7 +136,7 @@ function PreTest({ selected, setSelected, confidence, setConfidence, busy, onNex
   );
 }
 
-function Chat({ selected, confidence, retry, onNext }: { selected: string; confidence: number; retry: { question: Question; selected: string } | null; onNext: () => void }) {
+function Chat({ sessionId, selected, confidence, retry, onNext }: { sessionId: string; selected: string; confidence: number; retry: { question: Question; selected: string } | null; onNext: () => void }) {
   const { setStatus } = usePrototype();
   const [msgs, setMsgs] = useState<Msg[]>([{ role: "ai", text: retry ? `Aún no está validado el aprendizaje. Volvamos a razonar: ${retry.question.prompt}` : AI_OPENING }]);
   const [input, setInput] = useState("");
@@ -168,6 +169,7 @@ function Chat({ selected, confidence, retry, onNext }: { selected: string; confi
       const data = (await response.json()) as { respuesta?: string; error?: string };
       if (!response.ok || !data.respuesta) throw new Error(data.error ?? "Respuesta inválida");
       setMsgs((m) => [...m, { role: "ai", text: data.respuesta! }]);
+      void recordLearningEvent({ sessionCode: sessionId, eventType: "tutor_message", payload: { userMessage: text, tutorResponse: data.respuesta } }).catch(console.error);
       setStatus("Backend: Respuesta socrática recibida de Groq.");
       setTyping(false);
       setUserCount(idx + 1);

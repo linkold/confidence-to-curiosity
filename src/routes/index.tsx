@@ -1,4 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { StudentJoin } from "@/components/student-join";
+import { HomePage } from "@/components/home-page";
 import { pageHead } from "@/lib/page-head";
-export const Route = createFileRoute("/")({ head: () => pageHead("CogniCheck", "Únete a una experiencia de aprendizaje con tutor socrático."), component: StudentJoin });
+export const Route = createFileRoute("/")({ head: () => pageHead("Inicio", "Selecciona tu acceso a CogniCheck."), component: HomePage });
