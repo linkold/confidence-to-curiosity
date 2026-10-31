@@ -9,8 +9,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const sql = getNeonClient();
     await Promise.all([
-      sql`SELECT id FROM courses LIMIT 1`,
-      sql`SELECT id FROM learning_events LIMIT 1`,
+      sql`SELECT id FROM public.courses LIMIT 1`,
+      sql`SELECT id FROM public.learning_events LIMIT 1`,
     ]);
     return res.status(200).json({
       ok: true,

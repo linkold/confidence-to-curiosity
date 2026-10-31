@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const sql = getNeonClient();
     const rows = await sql`
-      INSERT INTO learning_events (session_code, event_type, alias, payload)
+      INSERT INTO public.learning_events (session_code, event_type, alias, payload)
       VALUES (
         ${body.sessionCode},
         ${body.eventType},

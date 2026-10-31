@@ -35,14 +35,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
              FROM jsonb_array_elements(c.questions) AS item(value)) AS questions,
             COALESCE(NULLIF(c.tutor_settings->>'students', '')::int, 0) AS "studentCount",
             c.created_at AS "createdAt"
-          FROM courses AS c
+          FROM public.courses AS c
           ORDER BY c.created_at DESC
         `;
         return res.status(200).json({ courses });
       }
       const rows = await sql`
         SELECT id::text, name, session_code AS "sessionCode", tutor_settings AS "tutorSettings"
-        FROM courses
+        FROM public.courses
         WHERE session_code = ${sessionCode}
         LIMIT 1
       `;
@@ -170,7 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sessionCode = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase();
     const sql = getNeonClient();
     const rows = await sql`
-      INSERT INTO courses (
+      INSERT INTO public.courses (
         name, session_code, topics, questions, material, question_variants, tutor_settings
       ) VALUES (
         ${body.name.trim()},
