@@ -17,7 +17,9 @@ import { Route as JoinIdRouteImport } from './routes/join.$id'
 import { Route as SIdRouteImport } from './routes/s.$id'
 import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherMonitorRouteImport } from './routes/teacher.monitor'
+import { Route as TeacherNewRouteImport } from './routes/teacher.new'
 import { Route as TeacherSetupRouteImport } from './routes/teacher.setup'
+import { Route as TeacherCourseIdRouteImport } from './routes/teacher.course.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -59,9 +61,19 @@ const TeacherMonitorRoute = TeacherMonitorRouteImport.update({
   path: '/monitor',
   getParentRoute: () => TeacherRoute,
 } as any)
+const TeacherNewRoute = TeacherNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => TeacherRoute,
+} as any)
 const TeacherSetupRoute = TeacherSetupRouteImport.update({
   id: '/setup',
   path: '/setup',
+  getParentRoute: () => TeacherRoute,
+} as any)
+const TeacherCourseIdRoute = TeacherCourseIdRouteImport.update({
+  id: '/course/$id',
+  path: '/course/$id',
   getParentRoute: () => TeacherRoute,
 } as any)
 
@@ -72,18 +84,22 @@ export interface FileRoutesByFullPath {
   '/join/$id': typeof JoinIdRoute
   '/s/$id': typeof SIdRoute
   '/teacher/monitor': typeof TeacherMonitorRoute
+  '/teacher/new': typeof TeacherNewRoute
   '/teacher/setup': typeof TeacherSetupRoute
   '/join/': typeof JoinIndexRoute
   '/teacher/': typeof TeacherIndexRoute
+  '/teacher/course/$id': typeof TeacherCourseIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/join/$id': typeof JoinIdRoute
   '/s/$id': typeof SIdRoute
   '/teacher/monitor': typeof TeacherMonitorRoute
+  '/teacher/new': typeof TeacherNewRoute
   '/teacher/setup': typeof TeacherSetupRoute
   '/join': typeof JoinIndexRoute
   '/teacher': typeof TeacherIndexRoute
+  '/teacher/course/$id': typeof TeacherCourseIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -93,9 +109,11 @@ export interface FileRoutesById {
   '/join/$id': typeof JoinIdRoute
   '/s/$id': typeof SIdRoute
   '/teacher/monitor': typeof TeacherMonitorRoute
+  '/teacher/new': typeof TeacherNewRoute
   '/teacher/setup': typeof TeacherSetupRoute
   '/join/': typeof JoinIndexRoute
   '/teacher/': typeof TeacherIndexRoute
+  '/teacher/course/$id': typeof TeacherCourseIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -106,18 +124,22 @@ export interface FileRouteTypes {
     | '/join/$id'
     | '/s/$id'
     | '/teacher/monitor'
+    | '/teacher/new'
     | '/teacher/setup'
     | '/join/'
     | '/teacher/'
+    | '/teacher/course/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/join/$id'
     | '/s/$id'
     | '/teacher/monitor'
+    | '/teacher/new'
     | '/teacher/setup'
     | '/join'
     | '/teacher'
+    | '/teacher/course/$id'
   id:
     | '__root__'
     | '/'
@@ -126,9 +148,11 @@ export interface FileRouteTypes {
     | '/join/$id'
     | '/s/$id'
     | '/teacher/monitor'
+    | '/teacher/new'
     | '/teacher/setup'
     | '/join/'
     | '/teacher/'
+    | '/teacher/course/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,11 +220,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherMonitorRouteImport
       parentRoute: typeof TeacherRoute
     }
+    '/teacher/new': {
+      id: '/teacher/new'
+      path: '/new'
+      fullPath: '/teacher/new'
+      preLoaderRoute: typeof TeacherNewRouteImport
+      parentRoute: typeof TeacherRoute
+    }
     '/teacher/setup': {
       id: '/teacher/setup'
       path: '/setup'
       fullPath: '/teacher/setup'
       preLoaderRoute: typeof TeacherSetupRouteImport
+      parentRoute: typeof TeacherRoute
+    }
+    '/teacher/course/$id': {
+      id: '/teacher/course/$id'
+      path: '/course/$id'
+      fullPath: '/teacher/course/$id'
+      preLoaderRoute: typeof TeacherCourseIdRouteImport
       parentRoute: typeof TeacherRoute
     }
   }
@@ -220,14 +258,18 @@ const JoinRouteWithChildren = JoinRoute._addFileChildren(JoinRouteChildren)
 
 interface TeacherRouteChildren {
   TeacherMonitorRoute: typeof TeacherMonitorRoute
+  TeacherNewRoute: typeof TeacherNewRoute
   TeacherSetupRoute: typeof TeacherSetupRoute
   TeacherIndexRoute: typeof TeacherIndexRoute
+  TeacherCourseIdRoute: typeof TeacherCourseIdRoute
 }
 
 const TeacherRouteChildren: TeacherRouteChildren = {
   TeacherMonitorRoute: TeacherMonitorRoute,
+  TeacherNewRoute: TeacherNewRoute,
   TeacherSetupRoute: TeacherSetupRoute,
   TeacherIndexRoute: TeacherIndexRoute,
+  TeacherCourseIdRoute: TeacherCourseIdRoute,
 }
 
 const TeacherRouteWithChildren =
