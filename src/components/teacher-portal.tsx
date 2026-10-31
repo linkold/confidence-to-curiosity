@@ -13,11 +13,11 @@ import {
   Plus,
   Settings2,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { createCourse, listCourses, type CourseRecord } from "@/lib/backend";
-import { usePrototype } from "@/lib/prototype";
 
 const WIZARD_STEPS = ["Curso y temas", "Preguntas", "Tutor", "Publicar"];
 const SAMPLE_CODE = "847291";
@@ -89,41 +89,60 @@ export function Classes() {
           </Link>
         </Button>
       </div>
-      {error && <p role="alert" className="mb-4 text-sm text-destructive">{error}</p>}
-      {loading && <p role="status" className="mb-4 text-sm">Cargando cursos…</p>}
-      {[demoCourse, ...courses].map((course) => <article key={course.id} className="mb-4 rounded-lg border border-border bg-card p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex gap-4">
-            <BookOpen className="mt-1 size-8 text-primary" />
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">{course.name}</h2>
-              <p className="mt-2 text-sm">{course.studentCount} plazas planificadas{course.id === SAMPLE_CODE ? " · datos de demostración" : ""}</p>
+      {error && (
+        <p role="alert" className="mb-4 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {loading && (
+        <p role="status" className="mb-4 text-sm">
+          Cargando cursos…
+        </p>
+      )}
+      {[demoCourse, ...courses].map((course) => (
+        <article key={course.id} className="mb-4 rounded-lg border border-border bg-card p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex gap-4">
+              <BookOpen className="mt-1 size-8 text-primary" />
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">{course.name}</h2>
+                <p className="mt-2 text-sm">
+                  {course.studentCount} plazas planificadas
+                  {course.id === SAMPLE_CODE ? " · datos de demostración" : ""}
+                </p>
+              </div>
             </div>
+            <span className="rounded-full bg-success/10 px-3 py-1 text-sm text-success">
+              {course.id === SAMPLE_CODE ? "Demo" : "Publicado"}
+            </span>
           </div>
-          <span className="rounded-full bg-success/10 px-3 py-1 text-sm text-success">
-            {course.id === SAMPLE_CODE ? "Demo" : "Publicado"}
-          </span>
-        </div>
-        <div className="mt-5 flex items-center gap-2 text-sm text-foreground">
-          <Hash className="size-4 text-primary" />
-          Código de acceso: <strong>{course.sessionCode}</strong>
-        </div>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Button asChild>
-            <Link to="/teacher/course/$id" params={{ id: course.id }}>
-              Ver curso <ArrowRight />
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/teacher/new">
-              <Settings2 />
-              Crear otro curso
-            </Link>
-          </Button>
-        </div>
-      </article>)}
-      {!loading && courses.length === 0 && <p className="mt-5 text-sm text-muted-foreground">Aún no hay cursos creados. El curso de programación es solo una demostración.</p>}
-      <Button type="button" variant="outline" className="mt-2" onClick={() => void reload()}>Actualizar cursos</Button>
+          <div className="mt-5 flex items-center gap-2 text-sm text-foreground">
+            <Hash className="size-4 text-primary" />
+            Código de acceso: <strong>{course.sessionCode}</strong>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button asChild>
+              <Link to="/teacher/course/$id" params={{ id: course.id }}>
+                Ver curso <ArrowRight />
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/teacher/new">
+                <Settings2 />
+                Crear otro curso
+              </Link>
+            </Button>
+          </div>
+        </article>
+      ))}
+      {!loading && courses.length === 0 && (
+        <p className="mt-5 text-sm text-muted-foreground">
+          Aún no hay cursos creados. El curso de programación es solo una demostración.
+        </p>
+      )}
+      <Button type="button" variant="outline" className="mt-2" onClick={() => void reload()}>
+        Actualizar cursos
+      </Button>
     </section>
   );
 }
@@ -143,15 +162,16 @@ function useTeacherCourses() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
   return { courses, loading, error, reload };
 }
 
-type QuestionDraft = { prompt: string; options: string[]; correct: number };
+type QuestionDraft = { prompt: string; subtopic: string; options: string[]; correct: number };
 
 export function NewCourseWizard() {
   const navigate = useNavigate();
-  const { setCreatedCourse } = usePrototype();
   const [step, setStep] = useState(0);
   const [courseName, setCourseName] = useState("");
   const [studentCount, setStudentCount] = useState("");
@@ -167,40 +187,47 @@ export function NewCourseWizard() {
 
   const addSubtopic = () => {
     const value = newSubtopic.trim();
-    if (value && !subtopics.includes(value)) {
+    const normalized = value.toLocaleLowerCase();
+    const alreadyExists = [centralTopic, ...subtopics].some(
+      (topic) => topic.trim().toLocaleLowerCase() === normalized,
+    );
+    if (value && !alreadyExists) {
       setSubtopics((current) => [...current, value]);
       setNewSubtopic("");
     }
   };
-  const proposeQuestions = () =>
-    setQuestions([
-      {
-        prompt: "¿Qué estructura conviene cuando no conoces de antemano las iteraciones?",
-        options: ["for", "while", "if", "switch"],
-        correct: 1,
-      },
-      {
-        prompt: "¿Qué evita que un bucle while sea infinito?",
-        options: [
-          "Una condición que cambia",
-          "Un comentario",
-          "Un nombre corto",
-          "Una variable constante",
-        ],
-        correct: 0,
-      },
-    ]);
-
   const addQuestion = () =>
-    setQuestions((current) => [...current, { prompt: "", options: ["", "", "", ""], correct: 0 }]);
-  const questionsValid = questions.length > 0 && questions.every((question) =>
-    question.prompt.trim() && question.options.length >= 2 &&
-    question.options.every((option) => option.trim()) &&
-    Number.isInteger(question.correct) && question.correct >= 0 && question.correct < question.options.length
-  );
-  const canContinue = step === 0
-    ? Boolean(courseName.trim() && centralTopic.trim() && subtopics.length >= 2 && Number(studentCount) > 0)
-    : step === 1 ? questionsValid : true;
+    setQuestions((current) => [
+      ...current,
+      { prompt: "", subtopic: subtopics[0] ?? "", options: ["", "", "", ""], correct: -1 },
+    ]);
+  const questionsValid =
+    questions.length > 0 &&
+    questions.every(
+      (question) =>
+        question.prompt.trim() &&
+        subtopics.includes(question.subtopic) &&
+        question.options.length >= 2 &&
+        question.options.every((option) => option.trim()) &&
+        Number.isInteger(question.correct) &&
+        question.correct >= 0 &&
+        question.correct < question.options.length,
+    ) &&
+    subtopics.every(
+      (topic) => questions.filter((question) => question.subtopic === topic).length >= 2,
+    );
+  const canContinue =
+    step === 0
+      ? Boolean(
+          courseName.trim() &&
+          centralTopic.trim() &&
+          subtopics.length >= 2 &&
+          Number.isInteger(Number(studentCount)) &&
+          Number(studentCount) > 0,
+        )
+      : step === 1
+        ? questionsValid
+        : true;
   const next = async () => {
     if (!canContinue) return;
     if (step < WIZARD_STEPS.length - 1) {
@@ -214,7 +241,11 @@ export function NewCourseWizard() {
         name: courseName.trim(),
         topics: [centralTopic.trim(), ...subtopics],
         material: "",
-        questionVariants: Math.max(2, questions.length),
+        questionVariants: Math.min(
+          ...subtopics.map(
+            (topic) => questions.filter((question) => question.subtopic === topic).length,
+          ),
+        ),
         questions,
         tutor: {
           tone,
@@ -223,12 +254,6 @@ export function NewCourseWizard() {
           model: "openai/gpt-oss-120b",
           students: Number(studentCount),
         },
-      });
-      setCreatedCourse({
-        id: course.id,
-        name: courseName.trim(),
-        sessionCode: course.sessionCode,
-        studentCount: Number(studentCount),
       });
       navigate({ to: "/teacher/course/$id", params: { id: course.id } });
     } catch (error) {
@@ -295,6 +320,7 @@ export function NewCourseWizard() {
                 id="student-count"
                 type="number"
                 min={1}
+                step={1}
                 value={studentCount}
                 onChange={(event) => setStudentCount(event.target.value)}
                 placeholder="Ej. 30"
@@ -362,17 +388,14 @@ export function NewCourseWizard() {
                 Preguntas de alternativa múltiple
               </h2>
               <p className="mt-2 text-sm">
-                Propón preguntas y edita sus alternativas antes de publicarlas.
+                Escribe al menos dos preguntas equivalentes por subtema. Marca la alternativa
+                correcta en cada pregunta.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Button type="button" onClick={addQuestion}>
                 <Plus />
                 Agregar pregunta
-              </Button>
-              <Button type="button" variant="outline" onClick={proposeQuestions}>
-                <Sparkles />
-                Insertar preguntas de ejemplo
               </Button>
             </div>
             {questions.map((question, questionIndex) => (
@@ -384,9 +407,40 @@ export function NewCourseWizard() {
                     onChange={(event) =>
                       updateQuestion(questionIndex, { prompt: event.target.value })
                     }
+                    aria-label={`Enunciado de pregunta ${questionIndex + 1}`}
+                    placeholder="Escribe el enunciado de la pregunta"
                     className="w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    aria-label={`Eliminar pregunta ${questionIndex + 1}`}
+                    onClick={() =>
+                      setQuestions((current) =>
+                        current.filter((_, index) => index !== questionIndex),
+                      )
+                    }
+                  >
+                    <Trash2 />
+                  </Button>
                 </div>
+                <label className="block text-sm">
+                  Subtema que evalúa
+                  <select
+                    value={question.subtopic}
+                    onChange={(event) =>
+                      updateQuestion(questionIndex, { subtopic: event.target.value })
+                    }
+                    className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground"
+                  >
+                    <option value="">Selecciona un subtema</option>
+                    {subtopics.map((topic) => (
+                      <option key={topic} value={topic}>
+                        {topic}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 {question.options.map((option, optionIndex) => (
                   <label key={optionIndex} className="flex items-center gap-2 text-sm">
                     <input
@@ -408,6 +462,11 @@ export function NewCourseWizard() {
                 ))}
               </div>
             ))}
+            {!questionsValid && (
+              <p className="text-sm text-muted-foreground">
+                Para continuar, completa cada pregunta y agrega al menos dos por cada subtema.
+              </p>
+            )}
           </div>
         )}
         {step === 2 && (
@@ -467,7 +526,7 @@ export function NewCourseWizard() {
             <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-accent p-4">
               <Sparkles className="size-5 text-primary" />
               <p className="text-sm text-foreground">
-                Modelo de IA: <strong>openai/gpt-oss-120b</strong> vía Groq
+                Modelo predeterminado del backend: <strong>openai/gpt-oss-120b</strong> vía Groq
               </p>
             </div>
           </div>
@@ -495,11 +554,12 @@ export function NewCourseWizard() {
               <h3 className="font-semibold text-foreground">Preguntas propuestas</h3>
               <div className="mt-3 space-y-2">
                 {questions.length ? (
-                  questions.map((question) => (
+                  questions.map((question, questionIndex) => (
                     <div
-                      key={question.prompt}
+                      key={`${questionIndex}-${question.prompt}`}
                       className="rounded-lg border border-border bg-background p-4 text-sm"
                     >
+                      <p className="text-xs text-primary">{question.subtopic}</p>
                       <p className="font-medium text-foreground">{question.prompt}</p>
                       <p className="mt-2">{question.options.join(" · ")}</p>
                     </div>
@@ -565,8 +625,16 @@ export function CourseDashboard() {
         <h1 className="mt-1 text-3xl font-bold text-foreground">Analítica de cursos</h1>
         <p className="mt-2">Selecciona un curso para revisar sus resultados.</p>
       </div>
-      {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
-      {loading && <p role="status" className="mt-4 text-sm">Cargando cursos…</p>}
+      {error && (
+        <p role="alert" className="mt-4 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {loading && (
+        <p role="status" className="mt-4 text-sm">
+          Cargando cursos…
+        </p>
+      )}
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {courses.map((item) => (
           <Link
@@ -583,7 +651,11 @@ export function CourseDashboard() {
                   <p className="mt-1 text-sm">Código {item.sessionCode}</p>
                 </div>
               </div>
-              <span className="text-sm text-muted-foreground">{item.id === SAMPLE_CODE ? `${item.studentCount} demo` : `${item.studentCount} plazas`}</span>
+              <span className="text-sm text-muted-foreground">
+                {item.id === SAMPLE_CODE
+                  ? `${item.studentCount} demo`
+                  : `${item.studentCount} plazas`}
+              </span>
             </div>
           </Link>
         ))}
@@ -614,24 +686,76 @@ export function CourseDashboard() {
         ))}
       </div>
       <div className="mt-8">
-        {course.id === SAMPLE_CODE ? <>
-          {tab === "Resumen" && <Summary />}
-          {tab === "Mapa de calor" && <Heatmap />}
-          {tab === "Alumnos" && <Students />}
-          {tab === "Preguntas" && <Questions />}
-          {tab === "Recomendaciones" && <Recommendations />}
-        </> : <RealCourseTab tab={tab} course={course} />}
+        {course.id === SAMPLE_CODE ? (
+          <>
+            {tab === "Resumen" && <Summary />}
+            {tab === "Mapa de calor" && <Heatmap />}
+            {tab === "Alumnos" && <Students />}
+            {tab === "Preguntas" && <Questions />}
+            {tab === "Recomendaciones" && <Recommendations />}
+          </>
+        ) : (
+          <RealCourseTab tab={tab} course={course} />
+        )}
       </div>
     </section>
   );
 }
 
 function RealCourseTab({ tab, course }: { tab: (typeof TABS)[number]; course: CourseRecord }) {
-  if (tab === "Mapa de calor") return <div className="rounded-lg border border-border bg-card p-6"><h2 className="font-semibold text-foreground">Temas del curso</h2><p className="mt-1 text-sm">Los resultados aparecerán cuando haya respuestas registradas.</p><ul className="mt-4 list-disc space-y-2 pl-5">{course.topics.map((topic) => <li key={topic}>{topic}</li>)}</ul></div>;
-  if (tab === "Preguntas") return <div className="space-y-3">{course.questions.map((question, index) => <article key={`${index}-${question.prompt}`} className="rounded-lg border border-border bg-card p-5"><h3 className="font-medium text-foreground">{question.prompt}</h3><p className="mt-2 text-sm">{question.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`).join(" · ")}</p><p className="mt-2 text-xs text-muted-foreground">Aún no hay estadísticas de respuestas.</p></article>)}</div>;
-  const title = tab === "Resumen" ? "Todavía no hay resultados" : tab === "Alumnos" ? "Aún no hay actividad de alumnos" : "Aún no hay datos suficientes para recomendar acciones";
-  const description = tab === "Resumen" ? "La participación, la ganancia pre/post y la conversión se calcularán a partir de las sesiones reales." : tab === "Alumnos" ? "El estado agregado se mostrará cuando los alumnos completen actividades." : "Las recomendaciones se presentarán como hipótesis cuando haya respuestas registradas.";
-  return <div className="rounded-lg border border-dashed border-border bg-card p-6"><h2 className="font-semibold text-foreground">{title}</h2><p className="mt-2 text-sm">{description}</p></div>;
+  if (tab === "Mapa de calor")
+    return (
+      <div className="rounded-lg border border-border bg-card p-6">
+        <h2 className="font-semibold text-foreground">Temas del curso</h2>
+        <p className="mt-1 text-sm">
+          Los resultados aparecerán cuando haya respuestas registradas.
+        </p>
+        <ul className="mt-4 list-disc space-y-2 pl-5">
+          {course.topics.map((topic) => (
+            <li key={topic}>{topic}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  if (tab === "Preguntas")
+    return (
+      <div className="space-y-3">
+        {course.questions.map((question, index) => (
+          <article
+            key={`${index}-${question.prompt}`}
+            className="rounded-lg border border-border bg-card p-5"
+          >
+            <h3 className="font-medium text-foreground">{question.prompt}</h3>
+            <p className="mt-2 text-sm">
+              {question.options
+                .map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`)
+                .join(" · ")}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Aún no hay estadísticas de respuestas.
+            </p>
+          </article>
+        ))}
+      </div>
+    );
+  const title =
+    tab === "Resumen"
+      ? "Todavía no hay resultados"
+      : tab === "Alumnos"
+        ? "Aún no hay actividad de alumnos"
+        : "Aún no hay datos suficientes para recomendar acciones";
+  const description =
+    tab === "Resumen"
+      ? "La participación, la ganancia pre/post y la conversión se calcularán a partir de las sesiones reales."
+      : tab === "Alumnos"
+        ? "El estado agregado se mostrará cuando los alumnos completen actividades."
+        : "Las recomendaciones se presentarán como hipótesis cuando haya respuestas registradas.";
+  return (
+    <div className="rounded-lg border border-dashed border-border bg-card p-6">
+      <h2 className="font-semibold text-foreground">{title}</h2>
+      <p className="mt-2 text-sm">{description}</p>
+    </div>
+  );
 }
 function Summary() {
   return (

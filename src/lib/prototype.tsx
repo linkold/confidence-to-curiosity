@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
 type ClassConfig = { topic: string; rigor: number; friction: number };
-type CreatedCourse = { id: string; name: string; sessionCode: string; studentCount: number };
 type Prototype = {
   status: string;
   setStatus: (status: string) => void;
@@ -11,8 +10,6 @@ type Prototype = {
   setGenerated: (generated: boolean) => void;
   student: { alias: string; validated: boolean } | null;
   setStudent: (student: { alias: string; validated: boolean } | null) => void;
-  createdCourse: CreatedCourse | null;
-  setCreatedCourse: (course: CreatedCourse | null) => void;
 };
 const PrototypeContext = createContext<Prototype | null>(null);
 export function PrototypeProvider({ children }: { children: ReactNode }) {
@@ -20,7 +17,6 @@ export function PrototypeProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState({ topic: "Estructuras de Control", rigor: 3, friction: 3 });
   const [generated, setGenerated] = useState(false);
   const [student, setStudent] = useState<Prototype["student"]>(null);
-  const [createdCourse, setCreatedCourse] = useState<CreatedCourse | null>(null);
   return (
     <PrototypeContext.Provider
       value={{
@@ -32,8 +28,6 @@ export function PrototypeProvider({ children }: { children: ReactNode }) {
         setGenerated,
         student,
         setStudent,
-        createdCourse,
-        setCreatedCourse,
       }}
     >
       {children}

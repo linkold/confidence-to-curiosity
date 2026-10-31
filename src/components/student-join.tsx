@@ -28,6 +28,17 @@ export function StudentJoin() {
               if (typeof window !== "undefined") {
                 sessionStorage.setItem("cognicheck:student-name", name.trim());
                 sessionStorage.setItem("cognicheck:course-name", course.name);
+                sessionStorage.setItem(
+                  "cognicheck:tutor-settings",
+                  JSON.stringify(
+                    course.tutorSettings ?? {
+                      tone: "Cercano y exigente",
+                      language: "Español",
+                      maxHints: 2,
+                      model: "openai/gpt-oss-120b",
+                    },
+                  ),
+                );
               }
               navigate({ to: "/s/$id", params: { id: course.sessionCode } });
             } catch (error) {

@@ -13,6 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as TeacherRouteImport } from './routes/teacher'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiCoursesRouteImport } from './routes/api/courses'
+import { Route as ApiEventsRouteImport } from './routes/api/events'
 import { Route as JoinIndexRouteImport } from './routes/join.index'
 import { Route as JoinIdRouteImport } from './routes/join.$id'
 import { Route as SIdRouteImport } from './routes/s.$id'
@@ -20,6 +23,7 @@ import { Route as TeacherIndexRouteImport } from './routes/teacher.index'
 import { Route as TeacherMonitorRouteImport } from './routes/teacher.monitor'
 import { Route as TeacherNewRouteImport } from './routes/teacher.new'
 import { Route as TeacherSetupRouteImport } from './routes/teacher.setup'
+import { Route as ApiHealthNeonRouteImport } from './routes/api/health/neon'
 import { Route as TeacherCourseIdRouteImport } from './routes/teacher.course.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -40,6 +44,21 @@ const JoinRoute = JoinRouteImport.update({
 const TeacherRoute = TeacherRouteImport.update({
   id: '/teacher',
   path: '/teacher',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCoursesRoute = ApiCoursesRouteImport.update({
+  id: '/api/courses',
+  path: '/api/courses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEventsRoute = ApiEventsRouteImport.update({
+  id: '/api/events',
+  path: '/api/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JoinIndexRoute = JoinIndexRouteImport.update({
@@ -77,6 +96,11 @@ const TeacherSetupRoute = TeacherSetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => TeacherRoute,
 } as any)
+const ApiHealthNeonRoute = ApiHealthNeonRouteImport.update({
+  id: '/api/health/neon',
+  path: '/api/health/neon',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TeacherCourseIdRoute = TeacherCourseIdRouteImport.update({
   id: '/course/$id',
   path: '/course/$id',
@@ -88,6 +112,9 @@ export interface FileRoutesByFullPath {
   '/home': typeof HomeRoute
   '/join': typeof JoinRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/api/chat': typeof ApiChatRoute
+  '/api/courses': typeof ApiCoursesRoute
+  '/api/events': typeof ApiEventsRoute
   '/join/$id': typeof JoinIdRoute
   '/s/$id': typeof SIdRoute
   '/teacher/monitor': typeof TeacherMonitorRoute
@@ -95,11 +122,15 @@ export interface FileRoutesByFullPath {
   '/teacher/setup': typeof TeacherSetupRoute
   '/join/': typeof JoinIndexRoute
   '/teacher/': typeof TeacherIndexRoute
+  '/api/health/neon': typeof ApiHealthNeonRoute
   '/teacher/course/$id': typeof TeacherCourseIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/home': typeof HomeRoute
+  '/api/chat': typeof ApiChatRoute
+  '/api/courses': typeof ApiCoursesRoute
+  '/api/events': typeof ApiEventsRoute
   '/join/$id': typeof JoinIdRoute
   '/s/$id': typeof SIdRoute
   '/teacher/monitor': typeof TeacherMonitorRoute
@@ -107,6 +138,7 @@ export interface FileRoutesByTo {
   '/teacher/setup': typeof TeacherSetupRoute
   '/join': typeof JoinIndexRoute
   '/teacher': typeof TeacherIndexRoute
+  '/api/health/neon': typeof ApiHealthNeonRoute
   '/teacher/course/$id': typeof TeacherCourseIdRoute
 }
 export interface FileRoutesById {
@@ -115,6 +147,9 @@ export interface FileRoutesById {
   '/home': typeof HomeRoute
   '/join': typeof JoinRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/api/chat': typeof ApiChatRoute
+  '/api/courses': typeof ApiCoursesRoute
+  '/api/events': typeof ApiEventsRoute
   '/join/$id': typeof JoinIdRoute
   '/s/$id': typeof SIdRoute
   '/teacher/monitor': typeof TeacherMonitorRoute
@@ -122,6 +157,7 @@ export interface FileRoutesById {
   '/teacher/setup': typeof TeacherSetupRoute
   '/join/': typeof JoinIndexRoute
   '/teacher/': typeof TeacherIndexRoute
+  '/api/health/neon': typeof ApiHealthNeonRoute
   '/teacher/course/$id': typeof TeacherCourseIdRoute
 }
 export interface FileRouteTypes {
@@ -131,6 +167,9 @@ export interface FileRouteTypes {
     | '/home'
     | '/join'
     | '/teacher'
+    | '/api/chat'
+    | '/api/courses'
+    | '/api/events'
     | '/join/$id'
     | '/s/$id'
     | '/teacher/monitor'
@@ -138,11 +177,15 @@ export interface FileRouteTypes {
     | '/teacher/setup'
     | '/join/'
     | '/teacher/'
+    | '/api/health/neon'
     | '/teacher/course/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/home'
+    | '/api/chat'
+    | '/api/courses'
+    | '/api/events'
     | '/join/$id'
     | '/s/$id'
     | '/teacher/monitor'
@@ -150,6 +193,7 @@ export interface FileRouteTypes {
     | '/teacher/setup'
     | '/join'
     | '/teacher'
+    | '/api/health/neon'
     | '/teacher/course/$id'
   id:
     | '__root__'
@@ -157,6 +201,9 @@ export interface FileRouteTypes {
     | '/home'
     | '/join'
     | '/teacher'
+    | '/api/chat'
+    | '/api/courses'
+    | '/api/events'
     | '/join/$id'
     | '/s/$id'
     | '/teacher/monitor'
@@ -164,6 +211,7 @@ export interface FileRouteTypes {
     | '/teacher/setup'
     | '/join/'
     | '/teacher/'
+    | '/api/health/neon'
     | '/teacher/course/$id'
   fileRoutesById: FileRoutesById
 }
@@ -172,7 +220,11 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRoute
   JoinRoute: typeof JoinRouteWithChildren
   TeacherRoute: typeof TeacherRouteWithChildren
+  ApiChatRoute: typeof ApiChatRoute
+  ApiCoursesRoute: typeof ApiCoursesRoute
+  ApiEventsRoute: typeof ApiEventsRoute
   SIdRoute: typeof SIdRoute
+  ApiHealthNeonRoute: typeof ApiHealthNeonRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -203,6 +255,27 @@ declare module '@tanstack/react-router' {
       path: '/teacher'
       fullPath: '/teacher'
       preLoaderRoute: typeof TeacherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/courses': {
+      id: '/api/courses'
+      path: '/api/courses'
+      fullPath: '/api/courses'
+      preLoaderRoute: typeof ApiCoursesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/events': {
+      id: '/api/events'
+      path: '/api/events'
+      fullPath: '/api/events'
+      preLoaderRoute: typeof ApiEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/join/': {
@@ -254,6 +327,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TeacherSetupRouteImport
       parentRoute: typeof TeacherRoute
     }
+    '/api/health/neon': {
+      id: '/api/health/neon'
+      path: '/api/health/neon'
+      fullPath: '/api/health/neon'
+      preLoaderRoute: typeof ApiHealthNeonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/teacher/course/$id': {
       id: '/teacher/course/$id'
       path: '/course/$id'
@@ -300,7 +380,11 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRoute,
   JoinRoute: JoinRouteWithChildren,
   TeacherRoute: TeacherRouteWithChildren,
+  ApiChatRoute: ApiChatRoute,
+  ApiCoursesRoute: ApiCoursesRoute,
+  ApiEventsRoute: ApiEventsRoute,
   SIdRoute: SIdRoute,
+  ApiHealthNeonRoute: ApiHealthNeonRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

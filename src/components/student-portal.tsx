@@ -49,7 +49,37 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
   const [currentScreen, setCurrentScreen] = useState<Screen>("welcome");
   const [selected, setSelected] = useState<string | null>(null);
   const [confidence, setConfidence] = useState(5);
+  const [postTestIndex, setPostTestIndex] = useState(0);
+  const [postTestRetries, setPostTestRetries] = useState(0);
+  const [tutorSettings, setTutorSettings] = useState({
+    tone: "Cercano y exigente",
+    language: "Español",
+    maxHints: 2,
+  });
   const [retry, setRetry] = useState<{ question: Question; selected: string } | null>(null);
+  useEffect(() => {
+    try {
+      const storedSettings = sessionStorage.getItem("cognicheck:tutor-settings");
+      if (!storedSettings) return;
+      const settings = JSON.parse(storedSettings) as Record<string, unknown>;
+      setTutorSettings({
+        tone:
+          settings["tone"] === "Formal y académico" || settings["tone"] === "Motivador"
+            ? settings["tone"]
+            : "Cercano y exigente",
+        language: settings["language"] === "English" ? "English" : "Español",
+        maxHints:
+          typeof settings["maxHints"] === "number" &&
+          Number.isInteger(settings["maxHints"]) &&
+          settings["maxHints"] >= 1 &&
+          settings["maxHints"] <= 5
+            ? settings["maxHints"]
+            : 2,
+      });
+    } catch {
+      sessionStorage.removeItem("cognicheck:tutor-settings");
+    }
+  }, []);
   const steps: Screen[] = ["welcome", "pre-test", "chat", "post-test", "progress"];
 
   return (
@@ -111,17 +141,36 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
             selected={selected}
             confidence={confidence}
             retry={retry}
+            maxHints={tutorSettings.maxHints}
+            tone={tutorSettings.tone}
+            language={tutorSettings.language}
             onNext={() => setCurrentScreen("post-test")}
           />
         )}
         {currentScreen === "post-test" && (
           <PostTest
+            key={postTestIndex}
+            sessionId={sessionId}
+            alias={student?.alias}
+            index={postTestIndex}
+            onAdvance={(index) => setPostTestIndex(index)}
             onNext={() => {
               setStudent({ alias: student?.alias ?? "Alumno anónimo", validated: true });
               setStatus("Aprendizaje validado.");
               setCurrentScreen("progress");
             }}
-            onRetry={(question, answer) => {
+            onRetry={(question, answer, index) => {
+              if (postTestRetries >= 2) {
+                setRetry(null);
+                if (index >= FINAL_QUESTIONS.length - 1) {
+                  setStatus("Sesión finalizada; se alcanzó el máximo de reintentos.");
+                  setCurrentScreen("progress");
+                } else {
+                  setPostTestIndex(index + 1);
+                }
+                return;
+              }
+              setPostTestRetries((count) => count + 1);
               setStatus("Backend: Brecha conceptual detectada. Reiniciando ciclo socrático...");
               setRetry({ question, selected: answer });
               setCurrentScreen("chat");
@@ -130,11 +179,14 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
         )}
         {currentScreen === "progress" && (
           <Progress
+            validated={student?.validated === true}
             onNext={() => {
               setStatus("Backend: En espera.");
               setRetry(null);
               setSelected(null);
               setConfidence(5);
+              setPostTestIndex(0);
+              setPostTestRetries(0);
               setCurrentScreen("welcome");
             }}
           />
@@ -259,12 +311,18 @@ function Chat({
   selected,
   confidence,
   retry,
+  maxHints,
+  tone,
+  language,
   onNext,
 }: {
   sessionId: string;
-  selected: string;
+  selected: string | null;
   confidence: number;
   retry: { question: Question; selected: string } | null;
+  maxHints: number;
+  tone: string;
+  language: string;
   onNext: () => void;
 }) {
   const { setStatus } = usePrototype();
@@ -273,7 +331,9 @@ function Chat({
       role: "ai",
       text: retry
         ? `Aún no está validado el aprendizaje. Volvamos a razonar: ${retry.question.prompt}`
-        : AI_OPENING,
+        : language === "English"
+          ? "Socratic mode: what concept is blocking you?"
+          : AI_OPENING,
     },
   ]);
   const [input, setInput] = useState("");
@@ -287,7 +347,7 @@ function Chat({
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text || typing || userCount >= 2) return;
+    if (!text || typing || userCount >= maxHints) return;
     const idx = userCount;
     const nextMsgs = [...msgs, { role: "user" as const, text }];
     setMsgs(nextMsgs);
@@ -303,9 +363,23 @@ function Chat({
             role: message.role === "ai" ? "assistant" : "user",
             content: message.text,
           })),
+          tone,
+          language,
         }),
       });
-      const data = (await response.json()) as { respuesta?: string; error?: string };
+      const contentType = response.headers.get("content-type") ?? "";
+      const responseText = await response.text();
+      let data: { respuesta?: string; error?: string };
+      try {
+        if (!contentType.includes("application/json")) throw new Error("non-json");
+        data = JSON.parse(responseText) as { respuesta?: string; error?: string };
+      } catch {
+        throw new Error(
+          response.status >= 500
+            ? `La función del tutor respondió ${response.status}. Revisa los logs y la configuración de Groq.`
+            : "La API del tutor no devolvió JSON. Comprueba que /api/chat esté desplegada.",
+        );
+      }
       if (!response.ok || !data.respuesta) throw new Error(data.error ?? "Respuesta inválida");
       setMsgs((m) => [...m, { role: "ai", text: data.respuesta! }]);
       void recordLearningEvent({
@@ -410,14 +484,14 @@ function Chat({
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            disabled={userCount >= 2}
+            disabled={userCount >= maxHints}
             aria-label="Tu razonamiento"
             placeholder="Escribe tu razonamiento..."
             className="min-w-0 flex-1 rounded-lg border border-input bg-background px-4 py-3 text-foreground outline-none focus:border-primary"
           />
           <Button
             type="submit"
-            disabled={typing || !input.trim() || userCount >= 2}
+            disabled={typing || !input.trim() || userCount >= maxHints}
             aria-label="Enviar"
             title="Enviar"
             className="h-auto rounded-lg bg-primary px-4 text-primary-foreground transition hover:brightness-110 disabled:opacity-40"
@@ -425,7 +499,7 @@ function Chat({
             <Send className="h-5 w-5" />
           </Button>
         </form>
-        {userCount >= 2 && !typing && (
+        {userCount >= maxHints && !typing && (
           <div className="animate-fade-up p-4 pt-0">
             <PrimaryBtn className="w-full" onClick={onNext}>
               <Lightbulb className="h-5 w-5" />
@@ -439,28 +513,41 @@ function Chat({
 }
 
 function PostTest({
+  sessionId,
+  alias,
+  index,
+  onAdvance,
   onNext,
   onRetry,
 }: {
+  sessionId: string;
+  alias: string | undefined;
+  index: number;
+  onAdvance: (index: number) => void;
   onNext: () => void;
-  onRetry: (question: Question, selected: string) => void;
+  onRetry: (question: Question, selected: string, index: number) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [index, setIndex] = useState(0);
   const question = FINAL_QUESTIONS[index];
   if (!question) return null;
   const submit = () => {
     if (!selected) return;
+    void recordLearningEvent({
+      sessionCode: sessionId,
+      eventType: "post_test_answer",
+      ...(alias ? { alias } : {}),
+      payload: { questionIndex: index, selected, correct: selected === question.correct },
+    }).catch(console.error);
     const result = assessAnswer(index, selected);
     if (result === "retry") {
-      onRetry(question, selected);
+      onRetry(question, selected, index);
       return;
     }
     if (result === "success") {
       onNext();
       return;
     }
-    setIndex(index + 1);
+    onAdvance(index + 1);
     setSelected(null);
   };
   return (
@@ -482,16 +569,27 @@ function PostTest({
   );
 }
 
-function Progress({ onNext }: { onNext: () => void }) {
+function Progress({ validated, onNext }: { validated: boolean; onNext: () => void }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center rounded-lg border border-border bg-card p-10 text-center">
-      <CheckCircle2 className="h-24 w-24 text-success" />
+      {validated ? (
+        <CheckCircle2 className="h-24 w-24 text-success" />
+      ) : (
+        <AlertTriangle className="h-24 w-24 text-primary" />
+      )}
       <p className="mt-6 text-sm text-primary">Paso 4 de 4</p>
       <h1 className="mt-2 text-3xl font-bold text-foreground">Mi progreso</h1>
-      <p className="mt-3">Tu sesión quedó registrada. Los resultados aparecerán cuando se calculen con tus respuestas reales.</p>
+      <p className="mt-3">
+        {validated
+          ? "Completaste correctamente el post-test."
+          : "Terminaste la sesión al alcanzar el máximo de reintentos."}{" "}
+        Los resultados aparecerán cuando se calculen con tus respuestas reales.
+      </p>
       <div className="mt-8 flex w-full gap-3 rounded-lg border border-primary/40 bg-accent p-6 text-left">
         <Quote className="h-6 w-6 shrink-0 text-primary" />
-        <p className="italic text-foreground">El progreso se mostrará aquí cuando haya datos suficientes de tu sesión.</p>
+        <p className="italic text-foreground">
+          El progreso se mostrará aquí cuando haya datos suficientes de tu sesión.
+        </p>
       </div>
       <PrimaryBtn className="mt-8" onClick={onNext}>
         <RotateCcw className="h-5 w-5" />

@@ -16,11 +16,7 @@ type VercelResponse = {
   setHeader: (name: string, value: string) => VercelResponse;
 };
 
-const SYSTEM_PROMPT = `Eres un tutor socrático estricto de programación.
-Nunca entregues la respuesta directa ni resuelvas el ejercicio por el estudiante.
-Guía mediante preguntas, pistas breves y reformulaciones que le hagan razonar.
-Si el estudiante pide la respuesta, rechaza amablemente y ofrece una pista.
-Responde siempre en español y usa como máximo 60 palabras.`;
+const TONES = ["Cercano y exigente", "Formal y académico", "Motivador"] as const;
 
 const groqApiKey = process.env["GROQ_API_KEY"] ?? process.env["GROQ_API"];
 
@@ -46,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "GROQ_API_KEY (o GROQ_API) no está configurada" });
   }
 
-  const body = req.body as { historial?: unknown } | undefined;
+  const body = req.body as { historial?: unknown; tone?: unknown; language?: unknown } | undefined;
   const historial = Array.isArray(body?.historial) ? body.historial.filter(isChatMessage) : [];
 
   if (historial.length === 0) {
@@ -54,12 +50,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const tone = TONES.find((option) => option === body?.tone) ?? TONES[0];
+    const language = body?.language === "English" ? "English" : "Spanish";
+    const systemPrompt = `You are a strict Socratic programming tutor. Never give the direct answer or solve the exercise. Guide the student with brief questions, hints, and reformulations that make them reason. If asked for the answer, politely refuse and offer a hint. Use a ${tone} tone. Respond in ${language} and use no more than 60 words.`;
     const groq = new Groq({ apiKey: groqApiKey });
     const completion = await groq.chat.completions.create({
       model: process.env["GROQ_MODEL"] ?? "openai/gpt-oss-120b",
       temperature: 0.4,
       max_tokens: 120,
-      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...historial.slice(-12)],
+      messages: [{ role: "system", content: systemPrompt }, ...historial.slice(-12)],
     });
 
     const respuesta = completion.choices[0]?.message?.content?.trim();

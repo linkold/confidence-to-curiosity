@@ -26,9 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error:
         databaseError.code === "42P01"
           ? "Faltan las tablas de Neon. Ejecuta neon/schema.sql en la base de datos correcta"
-          : error instanceof Error
-            ? error.message
-            : "No se pudo conectar con Neon",
+          : "No se pudo conectar con Neon. Revisa DATABASE_URL y los logs de Vercel",
       code: databaseError.code ?? "NEON_ERROR",
     });
   }

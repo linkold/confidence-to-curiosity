@@ -1,90 +1,38 @@
-# Confidence To Curiosity
+# CogniCheck
 
-Build a complete, interactive, single-page React application for an EdTech platform called "CogniCheck". The app prevents "cognitive offloading" by using a socratic AI tutor.
+Aplicación React con TanStack Start para sesiones de aprendizaje guiadas por un tutor socrático. El backend usa funciones Node.js de Vercel, Groq para el tutor y Neon Postgres para cursos y eventos.
 
-Visual Theme:
+## Desarrollo local
 
-- Strict Dark Mode. Main background: #0c0a15. Surface/Card backgrounds: #13111c. Primary accent color: #b388ff. Text: mostly gray-300 and white. 
+1. Instala dependencias con `npm install`.
+2. Copia `.env.example` a `.env.local` y completa las variables privadas.
+3. Ejecuta `neon/schema.sql` una vez en el SQL Editor de Neon.
+4. Inicia el entorno con `npx vercel dev` para que `/api/*` también esté disponible localmente.
 
-- Use Tailwind CSS and Lucide React icons. 
+## Variables de entorno
 
-State Management: 
+Configura en `.env.local` para desarrollo y en Vercel → Settings → Environment Variables para cada entorno:
 
-Create a main state `currentScreen` starting at 'pre-test', moving to 'chat', then 'post-test', and finally 'dashboard'.
+- `DATABASE_URL`: cadena de conexión Postgres de Neon.
+- `GROQ_API_KEY`: clave privada de Groq. `GROQ_API` se acepta por compatibilidad.
+- `GROQ_MODEL`: opcional; predeterminado `openai/gpt-oss-120b`.
 
-Screen 1: Pre-Test (currentScreen === 'pre-test')
+No uses prefijo `VITE_` para secretos. Las variables antiguas de Supabase ya no las consume el backend.
 
-- Title: "Diagnóstico Inicial"
+## API
 
-- Question: "¿Cuál es la diferencia estructural principal entre un bucle while y un for?"
+- `POST /api/chat`: recibe `{ historial: [{ role, content }] }` y responde `{ respuesta }`.
+- `GET /api/courses`: devuelve cursos persistidos en Neon.
+- `GET /api/courses?sessionCode=...`: verifica un código de acceso.
+- `POST /api/courses`: crea un curso con temas, preguntas y configuración del tutor.
+- `POST /api/events`: registra eventos de aprendizaje.
+- `GET /api/health/neon`: comprueba la conexión y el esquema de Neon.
 
-- 3 clickable option cards (A, B, C). Option B ("No hay diferencia, ambos se usan exactamente para lo mismo") should be highlighted as selected.
+El código `847291` identifica el único curso de demostración; sus métricas son ficticias y están aisladas de los cursos reales.
 
-- A range slider (1 to 5) labeled "Nivel de confianza en tu respuesta".
+## Comprobaciones
 
-- A primary button "Enviar Respuesta" that sets currentScreen to 'chat'.
+- `npx tsc --noEmit`: verificación de tipos.
+- `npm run build`: compilación para Vercel.
 
-Screen 2: Socratic Chat (currentScreen === 'chat')
-
-- Split screen layout. 
-
-- LEFT SIDE: Shows the user's wrong answer in red, their high confidence score, and a warning: "Brecha conceptual detectada. Debes interactuar con el Tutor Socrático para avanzar."
-
-- RIGHT SIDE: A functional chat UI. 
-
-- CHAT LOGIC (CRITICAL): The chat calls the same-origin Vercel Serverless Function at `/api/chat`. Start with an AI message: "Modo Socrático Activado. Noté que fallaste en la pregunta sobre bucles. ¿Qué concepto te está bloqueando?".
-
-- When the user types in the input and hits Send, render their message instantly. Then, trigger a setTimeout for 1.5 seconds and render this AI response: "Esa es la parte que quiero que razones. Piensa en el límite de iteraciones: ¿qué bucle usas cuando no sabes cuántas veces se repetirá el código?". 
-
-- If the user sends a second message, wait 1.5 seconds and render: "Exacto. Ahora reformula cuándo es peligroso usar un while sin condición de salida clara."
-
-- After 2 user messages, display a button below the chat: "Concepto Reformulado - Ir al Post-Test", which sets currentScreen to 'post-test'.
-
-Screen 3: Post-Test Success (currentScreen === 'post-test')
-
-- A large green check icon. Title: "¡Aprendizaje Validado!". 
-
-- Subtitle: "Resolviste la variante B del problema sin asistencia de IA."
-
-- Button: "Ver Panel del Profesor" which sets currentScreen to 'dashboard'.
-
-Screen 4: Teacher Dashboard (currentScreen === 'dashboard')
-
-- Title: "Panel Analítico del Docente"
-
-- 3 stat cards: "85% Fallo Pre-Test", "2.4 Pistas Promedio", "92% Conversión Post-Test" (highlight this in green).
-
-- A table of students. Columns: Estudiante, Pistas Usadas, Intentos de Copiar, Estado.
-
-- Row 1: "Lincoln Haziel Chagua Bustos (20244108J)", Pistas: 2, Intentos: 1, Estado: "Validado" (Green text).
-
-- Row 2: "Alumno Prueba B", Pistas: 4, Intentos: 3, Estado: "Requiere Humano" (Red text).
-
-Ensure the UI is polished, responsive, and transitions smoothly between states. All UI text must be exactly in Spanish as provided.
-
-## Vercel and Groq
-
-The backend lives in [`api/chat.ts`](./api/chat.ts) and is deployed automatically as `/api/chat` by Vercel. It accepts `POST` requests with a `historial` array, calls Groq with a strict Spanish Socratic system prompt, and returns `{ respuesta }`.
-
-Copy [`.env.example`](./.env.example) to `.env.local` for local development. The API accepts either `GROQ_API_KEY` (recommended) or `GROQ_API`. Set the selected variable in Vercel under Settings → Environment Variables. Keep Groq and the Neon `DATABASE_URL` server-side; do not prefix them with `VITE_`. Run `neon/schema.sql` in Neon before using persistence.
-
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/23f6f6ea-e1f3-43ee-99cf-899680ecd840).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+En producción, revisa Vercel → Logs si una función responde con error. Los registros persistentes requieren que `DATABASE_URL` esté configurada y que el esquema de Neon esté aplicado.

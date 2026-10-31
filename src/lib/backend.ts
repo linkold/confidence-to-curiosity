@@ -5,15 +5,26 @@ type EventInput = {
   payload?: Record<string, unknown>;
 };
 
-export type CourseQuestion = { prompt: string; options: string[]; correct: number };
+export type CourseQuestion = {
+  prompt: string;
+  subtopic: string;
+  options: string[];
+  correct: number;
+};
 export type CourseRecord = {
   id: string;
   name: string;
   sessionCode: string;
   topics: string[];
-  questions: CourseQuestion[];
+  questions: Omit<CourseQuestion, "correct">[];
   studentCount: number;
   createdAt?: string;
+};
+export type TutorSettings = {
+  tone: string;
+  language: string;
+  maxHints: number;
+  model: string;
 };
 
 async function readJson<T>(response: Response) {
@@ -98,10 +109,18 @@ export async function verifyCourseSession(sessionCode: string) {
     name?: string;
     sessionCode?: string;
     verified?: boolean;
+    tutorSettings?: TutorSettings;
     error?: string;
   }>(response);
   if (!response.ok || !data.id || !data.name || data.verified !== true) {
     throw new Error(data.error ?? "No se pudo verificar el código del curso");
   }
-  return data as { id: string; name: string; sessionCode: string; verified: true; demo?: boolean };
+  return data as {
+    id: string;
+    name: string;
+    sessionCode: string;
+    verified: true;
+    demo?: boolean;
+    tutorSettings?: TutorSettings;
+  };
 }
