@@ -11,3 +11,4 @@
 
 - Keep assessment questions, answer keys, and progression rules in a browser-safe module shared by the quiz and tests so retry decisions remain consistent.
 - Keep prototype navigation and attempt state in React; returning from tutoring starts a fresh final assessment without retaining old selections.
+- Use separate TanStack routes for teacher sections and student session URLs, with portal navigation and shared in-memory class state in the root shell; this keeps deep links functional without a backend.
