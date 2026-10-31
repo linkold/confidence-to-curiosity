@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { assessAnswer, FINAL_QUESTIONS, type Question } from "@/lib/assessment";
 import {
   AlertTriangle, Bot, BrainCircuit, CheckCircle2, Lightbulb, LogIn, Quote, RotateCcw, Send, User, XCircle,
 } from "lucide-react";
@@ -26,11 +28,6 @@ const PRE_OPTIONS = [
   { k: "B", t: "No hay diferencia, ambos se usan exactamente para lo mismo" },
   { k: "C", t: "El while siempre se ejecuta al menos una vez, el for nunca." },
 ];
-const POST_OPTIONS = [
-  { k: "A", t: "Un bucle for, porque siempre recorre un número fijo de líneas." },
-  { k: "B", t: "Un bucle while, porque la salida depende de una condición (encontrar la línea vacía) y no de un conteo conocido." },
-  { k: "C", t: "Da igual; cualquier bucle produce el mismo resultado." },
-];
 const AI_OPENING =
   "Modo Socrático Activado. Noté que fallaste en la pregunta. ¿Qué concepto exacto te está bloqueando?";
 const AI_REPLIES = [
@@ -42,6 +39,7 @@ function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [selected, setSelected] = useState("B");
   const [confidence, setConfidence] = useState(5);
+  const [retry, setRetry] = useState<{ question: Question; selected: string } | null>(null);
   const steps: Screen[] = ["login", "pre-test", "chat", "post-test", "success"];
 
   return (
@@ -63,9 +61,17 @@ function App() {
         {currentScreen === "pre-test" && (
           <PreTest selected={selected} setSelected={setSelected} confidence={confidence} setConfidence={setConfidence} onNext={() => setCurrentScreen("chat")} />
         )}
-        {currentScreen === "chat" && <Chat selected={selected} confidence={confidence} onNext={() => setCurrentScreen("post-test")} />}
-        {currentScreen === "post-test" && <PostTest onNext={() => setCurrentScreen("success")} />}
-        {currentScreen === "success" && <Success onNext={() => setCurrentScreen("login")} />}
+        {currentScreen === "chat" && <Chat selected={selected} confidence={confidence} retry={retry} onNext={() => setCurrentScreen("post-test")} />}
+        {currentScreen === "post-test" && <PostTest onNext={() => setCurrentScreen("success")} onRetry={(question, answer) => {
+          setRetry({ question, selected: answer });
+          setCurrentScreen("chat");
+        }} />}
+        {currentScreen === "success" && <Success onNext={() => {
+          setRetry(null);
+          setSelected("B");
+          setConfidence(5);
+          setCurrentScreen("login");
+        }} />}
       </main>
     </div>
   );
@@ -73,9 +79,9 @@ function App() {
 
 function PrimaryBtn({ className = "", ...p }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <button
+    <Button
       {...p}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground shadow-glow transition hover:brightness-110 active:scale-[0.98] disabled:opacity-40 ${className}`}
+      className={`inline-flex h-auto whitespace-normal items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground shadow-glow transition hover:brightness-110 active:scale-[0.98] disabled:opacity-40 ${className}`}
     />
   );
 }
@@ -121,11 +127,11 @@ function Login({ onNext }: { onNext: () => void }) {
 
 function OptionCard({ option, on, onClick }: { option: { k: string; t: string }; on: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick}
-      className={`flex w-full items-start gap-4 rounded-xl border p-4 text-left transition ${on ? "border-primary bg-accent shadow-glow" : "border-border hover:border-primary/50"}`}>
+    <Button type="button" variant="ghost" aria-pressed={on} onClick={onClick}
+      className={`flex h-auto w-full justify-start whitespace-normal items-start gap-4 rounded-xl border p-4 text-left text-base font-normal transition ${on ? "border-primary bg-accent shadow-glow" : "border-border hover:border-primary/50"}`}>
       <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg font-bold ${on ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}>{option.k}</span>
       <span className={on ? "text-foreground" : ""}>{option.t}</span>
-    </button>
+    </Button>
   );
 }
 
@@ -153,12 +159,14 @@ function PreTest({ selected, setSelected, confidence, setConfidence, onNext }: {
   );
 }
 
-function Chat({ selected, confidence, onNext }: { selected: string; confidence: number; onNext: () => void }) {
-  const [msgs, setMsgs] = useState<Msg[]>([{ role: "ai", text: AI_OPENING }]);
+function Chat({ selected, confidence, retry, onNext }: { selected: string; confidence: number; retry: { question: Question; selected: string } | null; onNext: () => void }) {
+  const [msgs, setMsgs] = useState<Msg[]>([{ role: "ai", text: retry ? `Aún no está validado el aprendizaje. Volvamos a razonar: ${retry.question.prompt}` : AI_OPENING }]);
   const [input, setInput] = useState("");
   const [userCount, setUserCount] = useState(0);
   const [typing, setTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
   useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), [msgs, typing]);
 
   const send = (e: React.FormEvent) => {
@@ -169,24 +177,26 @@ function Chat({ selected, confidence, onNext }: { selected: string; confidence: 
     setMsgs((m) => [...m, { role: "user", text }]);
     setInput("");
     setTyping(true);
-    setTimeout(() => {
-      setMsgs((m) => [...m, { role: "ai", text: AI_REPLIES[idx] ?? "" }]);
+    timerRef.current = setTimeout(() => {
+      setMsgs((m) => [...m, { role: "ai", text: (retry?.question.hints ?? AI_REPLIES)[idx] ?? "" }]);
       setTyping(false);
       setUserCount(idx + 1);
     }, 1500);
   };
-  const answer = PRE_OPTIONS.find((o) => o.k === selected)!;
+  const answer = retry ? retry.question.options.find((o) => o.k === retry.selected) : PRE_OPTIONS.find((o) => o.k === selected);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
       <aside className="space-y-4">
         <div className="rounded-2xl border border-border bg-card p-6">
           <p className="text-xs uppercase tracking-wider">Tu respuesta</p>
+          {retry && <p role="alert" className="mt-3 text-sm text-destructive">Respuesta final incorrecta. Regresa al Tutor Socrático para intentarlo de nuevo.</p>}
+          {retry && <p className="mt-3 text-foreground">{retry.question.prompt}</p>}
           <div className="mt-3 flex gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive">
-            <XCircle className="h-5 w-5 shrink-0" /> <span>{answer.k}. {answer.t}</span>
+            <XCircle className="h-5 w-5 shrink-0" /> <span>{answer?.k}. {answer?.t}</span>
           </div>
-          <p className="mt-5 text-xs uppercase tracking-wider">Confianza declarada</p>
-          <p className="mt-1 text-3xl font-bold text-foreground">{confidence}<span className="text-base text-muted-foreground">/5</span></p>
+          {!retry && <><p className="mt-5 text-xs uppercase tracking-wider">Confianza declarada</p>
+          <p className="mt-1 text-3xl font-bold text-foreground">{confidence}<span className="text-base text-muted-foreground">/5</span></p></>}
         </div>
         <div className="flex gap-3 rounded-2xl border border-primary/40 bg-accent p-5 text-foreground">
           <AlertTriangle className="h-5 w-5 shrink-0 text-primary" />
@@ -214,13 +224,13 @@ function Chat({ selected, confidence, onNext }: { selected: string; confidence: 
           <div ref={endRef} />
         </div>
         <form onSubmit={send} className="flex gap-2 border-t border-border p-4">
-          <input value={input} onChange={(e) => setInput(e.target.value)} disabled={userCount >= 2}
+          <input value={input} onChange={(e) => setInput(e.target.value)} disabled={userCount >= 2} aria-label="Tu razonamiento"
             placeholder="Escribe tu razonamiento..."
-            className="flex-1 rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none focus:border-primary" />
-          <button type="submit" disabled={typing || !input.trim() || userCount >= 2} aria-label="Send"
-            className="rounded-xl bg-primary px-4 text-primary-foreground transition hover:brightness-110 disabled:opacity-40">
+            className="min-w-0 flex-1 rounded-xl border border-input bg-background px-4 py-3 text-foreground outline-none focus:border-primary" />
+          <Button type="submit" disabled={typing || !input.trim() || userCount >= 2} aria-label="Enviar" title="Enviar"
+            className="h-auto rounded-xl bg-primary px-4 text-primary-foreground transition hover:brightness-110 disabled:opacity-40">
             <Send className="h-5 w-5" />
-          </button>
+          </Button>
         </form>
         {userCount >= 2 && !typing && (
           <div className="animate-fade-up p-4 pt-0">
@@ -232,18 +242,30 @@ function Chat({ selected, confidence, onNext }: { selected: string; confidence: 
   );
 }
 
-function PostTest({ onNext }: { onNext: () => void }) {
+function PostTest({ onNext, onRetry }: { onNext: () => void; onRetry: (question: Question, selected: string) => void }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const [index, setIndex] = useState(0);
+  const question = FINAL_QUESTIONS[index];
+  if (!question) return null;
+  const submit = () => {
+    if (!selected) return;
+    const result = assessAnswer(index, selected);
+    if (result === "retry") { onRetry(question, selected); return; }
+    if (result === "success") { onNext(); return; }
+    setIndex(index + 1);
+    setSelected(null);
+  };
   return (
     <div className="mx-auto max-w-2xl rounded-2xl border border-border bg-card p-6 sm:p-10">
       <h1 className="text-3xl font-bold text-foreground">Validación de Aprendizaje (Sin IA)</h1>
-      <p className="mt-6 text-lg text-foreground">Si necesitas leer un archivo de texto hasta encontrar una línea vacía, ¿qué bucle es estructuralmente más seguro?</p>
+      <p className="mt-4 text-sm text-primary" aria-live="polite">Pregunta {index + 1} de {FINAL_QUESTIONS.length}</p>
+      <p className="mt-6 text-lg text-foreground">{question.prompt}</p>
       <div className="mt-6 space-y-3">
-        {POST_OPTIONS.map((o) => (
+        {question.options.map((o) => (
           <OptionCard key={o.k} option={o} on={selected === o.k} onClick={() => setSelected(o.k)} />
         ))}
       </div>
-      <PrimaryBtn className="mt-8 w-full" disabled={!selected} onClick={onNext}>Enviar Respuesta Final</PrimaryBtn>
+      <PrimaryBtn className="mt-8 w-full" disabled={!selected} onClick={submit}>{index === FINAL_QUESTIONS.length - 1 ? "Enviar Respuesta Final" : "Enviar Respuesta"}</PrimaryBtn>
     </div>
   );
 }

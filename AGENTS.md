@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep assessment questions, answer keys, and progression rules in a browser-safe module shared by the quiz and tests so retry decisions remain consistent.
+- Keep prototype navigation and attempt state in React; returning from tutoring starts a fresh final assessment without retaining old selections.
