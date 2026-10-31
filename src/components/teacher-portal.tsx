@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { usePrototype } from "@/lib/prototype";
 
 export function TeacherLayout() {
-  return <div className="mx-auto grid max-w-7xl md:min-h-[720px] md:grid-cols-[220px_1fr]">
-    <aside className="border-b border-border px-5 py-6 md:border-r md:border-b-0 md:py-9">
+  return <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] md:min-h-[720px] md:grid-cols-[220px_minmax(0,1fr)]">
+    <aside className="min-w-0 border-b border-border px-5 py-6 md:border-r md:border-b-0 md:py-9">
       <p className="mb-5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Portal del Profesor</p>
-      <nav aria-label="Profesor" className="flex gap-2 overflow-x-auto md:flex-col">
+      <nav aria-label="Profesor" className="flex flex-wrap gap-2 md:flex-col">
         {([{ to: "/teacher", label: "Mis Clases", icon: BookOpen }, { to: "/teacher/setup", label: "Configurar Clase", icon: SlidersHorizontal }, { to: "/teacher/monitor", label: "Monitor en Vivo", icon: Activity }] as const).map(({to, label, icon: Icon}) => <Button asChild variant="ghost" key={to} className="justify-start"><Link to={to} activeOptions={{exact:true}} activeProps={{className:"bg-accent text-primary"}}><Icon />{label}</Link></Button>)}
       </nav>
     </aside>
@@ -44,7 +44,7 @@ export function Setup() {
       </div>
       <Button type="submit" className="h-auto px-6 py-3"><Sparkles />Generar Clase</Button>
     </form>
-    {saved && <div role="status" className="mt-6 flex items-center gap-2 text-success"><CheckCircle2 className="size-5" />Guardado en Supabase DB</div>}
+    {saved && <div role="status" className="fixed bottom-16 right-4 z-50 flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-lg border border-success/40 bg-card px-5 py-4 text-sm text-success"><CheckCircle2 className="size-5 shrink-0" />Guardado en Supabase DB</div>}
     {generated && <div className="mt-6 border-t border-border pt-6"><p className="mb-3 text-sm">Enlace de la sesión</p><div className="flex items-center gap-3"><Link to="/join/$id" params={{id:"847291"}} className="min-w-0 break-all text-primary underline underline-offset-4">cognicheck.app/join/847291</Link><Button variant="outline" size="icon" aria-label="Copiar enlace" title="Copiar enlace" onClick={async () => {try {await navigator.clipboard.writeText(`${window.location.origin}/join/847291`);setCopied(true);setCopyError(false);} catch {setCopyError(true);}}}>{copied ? <CheckCircle2 /> : <Copy />}</Button></div>{copied && <p role="status" className="mt-2 text-sm text-success">Enlace copiado</p>}{copyError && <p role="alert" className="mt-2 text-sm text-destructive">No se pudo copiar el enlace.</p>}</div>}
   </section>;
 }
