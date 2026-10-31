@@ -5,6 +5,17 @@ type EventInput = {
   payload?: Record<string, unknown>;
 };
 
+export type CourseQuestion = { prompt: string; options: string[]; correct: number };
+export type CourseRecord = {
+  id: string;
+  name: string;
+  sessionCode: string;
+  topics: string[];
+  questions: CourseQuestion[];
+  studentCount: number;
+  createdAt?: string;
+};
+
 async function readJson<T>(response: Response) {
   const contentType = response.headers.get("content-type") ?? "";
   const body = await response.text();
@@ -49,6 +60,7 @@ export async function createCourse(course: {
   topics: string[];
   material: string;
   questionVariants: number;
+  questions: CourseQuestion[];
   tutor: Record<string, unknown>;
 }) {
   const response = await fetch("/api/courses", {
@@ -66,6 +78,15 @@ export async function createCourse(course: {
     throw new Error(data.error ?? "No se pudo verificar el curso creado");
   }
   return data as { id: string; sessionCode: string; verified: true };
+}
+
+export async function listCourses() {
+  const response = await fetch("/api/courses");
+  const data = await readJson<{ courses?: CourseRecord[]; error?: string }>(response);
+  if (!response.ok || !Array.isArray(data.courses)) {
+    throw new Error(data.error ?? "No se pudieron cargar los cursos");
+  }
+  return data.courses;
 }
 
 export async function verifyCourseSession(sessionCode: string) {

@@ -11,7 +11,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "GET") {
     const rawCode = req.query?.["sessionCode"];
     const sessionCode = (Array.isArray(rawCode) ? rawCode[0] : rawCode)?.trim().toUpperCase();
-    if (!sessionCode) return res.status(400).json({ error: "El código de sesión es obligatorio" });
     if (sessionCode === "847291") {
       return res.status(200).json({
         id: "demo-847291",
@@ -23,8 +22,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
     try {
       const sql = getNeonClient();
+      if (!sessionCode) {
+        const courses = await sql`
+          SELECT id::text, name, session_code AS "sessionCode", topics, questions,
+            COALESCE(NULLIF(tutor_settings->>'students', '')::int, 0) AS "studentCount",
+            created_at AS "createdAt"
+          FROM courses
+          ORDER BY created_at DESC
+        `;
+        return res.status(200).json({ courses });
+      }
       const rows = await sql`
-        SELECT id::text, name, session_code AS "sessionCode"
+        SELECT id::text, name, session_code AS "sessionCode", topics, questions,
+          COALESCE(NULLIF(tutor_settings->>'students', '')::int, 0) AS "studentCount"
         FROM courses
         WHERE session_code = ${sessionCode}
         LIMIT 1
@@ -53,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         topics?: unknown;
         material?: unknown;
         questionVariants?: unknown;
+        questions?: unknown;
         tutor?: unknown;
       }
     | undefined;
@@ -66,17 +77,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     body.tutor && typeof body.tutor === "object" ? (body.tutor as Record<string, unknown>) : {};
   if (typeof tutor["students"] !== "number" || tutor["students"] < 1)
     return res.status(400).json({ error: "La cantidad de alumnos debe ser mayor que cero" });
+  const questions = body.questions;
+  if (!Array.isArray(questions) || questions.length === 0)
+    return res.status(400).json({ error: "Agrega al menos una pregunta antes de publicar" });
+  const invalidQuestion = questions.some((item) => {
+    if (!item || typeof item !== "object") return true;
+    const question = item as Record<string, unknown>;
+    const options = question["options"];
+    return (
+      typeof question["prompt"] !== "string" ||
+      !question["prompt"].trim() ||
+      !Array.isArray(options) ||
+      options.length < 2 ||
+      options.some((option) => typeof option !== "string" || !option.trim()) ||
+      typeof question["correct"] !== "number" ||
+      !Number.isInteger(question["correct"]) ||
+      question["correct"] < 0 ||
+      question["correct"] >= options.length
+    );
+  });
+  if (invalidQuestion)
+    return res.status(400).json({ error: "Completa cada pregunta y marca una alternativa correcta" });
 
   try {
     const sessionCode = crypto.randomUUID().replaceAll("-", "").slice(0, 6).toUpperCase();
     const sql = getNeonClient();
     const rows = await sql`
       INSERT INTO courses (
-        name, session_code, topics, material, question_variants, tutor_settings
+        name, session_code, topics, questions, material, question_variants, tutor_settings
       ) VALUES (
         ${body.name.trim()},
         ${sessionCode},
         ${JSON.stringify(body.topics)}::jsonb,
+        ${JSON.stringify(questions)}::jsonb,
         ${typeof body.material === "string" ? body.material : null},
         ${typeof body.questionVariants === "number" ? body.questionVariants : 2},
         ${JSON.stringify(body.tutor && typeof body.tutor === "object" ? body.tutor : {})}::jsonb

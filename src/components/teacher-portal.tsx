@@ -14,9 +14,9 @@ import {
   Settings2,
   Sparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { createCourse } from "@/lib/backend";
+import { createCourse, listCourses, type CourseRecord } from "@/lib/backend";
 import { usePrototype } from "@/lib/prototype";
 
 const WIZARD_STEPS = ["Curso y temas", "Preguntas", "Tutor", "Publicar"];
@@ -68,8 +68,8 @@ export function TeacherLayout() {
 }
 
 export function Classes() {
-  const { createdCourse } = usePrototype();
-  const course = createdCourse ?? {
+  const { courses, loading, error, reload } = useTeacherCourses();
+  const demoCourse = {
     id: SAMPLE_CODE,
     name: "Fundamentos de programación",
     sessionCode: SAMPLE_CODE,
@@ -89,17 +89,19 @@ export function Classes() {
           </Link>
         </Button>
       </div>
-      <article className="rounded-lg border border-border bg-card p-6">
+      {error && <p role="alert" className="mb-4 text-sm text-destructive">{error}</p>}
+      {loading && <p role="status" className="mb-4 text-sm">Cargando cursos…</p>}
+      {[demoCourse, ...courses].map((course) => <article key={course.id} className="mb-4 rounded-lg border border-border bg-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex gap-4">
             <BookOpen className="mt-1 size-8 text-primary" />
             <div>
               <h2 className="text-xl font-semibold text-foreground">{course.name}</h2>
-              <p className="mt-2 text-sm">{course.studentCount} alumnos · curso activo</p>
+              <p className="mt-2 text-sm">{course.studentCount} plazas planificadas{course.id === SAMPLE_CODE ? " · datos de demostración" : ""}</p>
             </div>
           </div>
           <span className="rounded-full bg-success/10 px-3 py-1 text-sm text-success">
-            Publicado
+            {course.id === SAMPLE_CODE ? "Demo" : "Publicado"}
           </span>
         </div>
         <div className="mt-5 flex items-center gap-2 text-sm text-foreground">
@@ -119,9 +121,30 @@ export function Classes() {
             </Link>
           </Button>
         </div>
-      </article>
+      </article>)}
+      {!loading && courses.length === 0 && <p className="mt-5 text-sm text-muted-foreground">Aún no hay cursos creados. El curso de programación es solo una demostración.</p>}
+      <Button type="button" variant="outline" className="mt-2" onClick={() => void reload()}>Actualizar cursos</Button>
     </section>
   );
+}
+
+function useTeacherCourses() {
+  const [courses, setCourses] = useState<CourseRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setCourses(await listCourses());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudieron cargar los cursos");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  useEffect(() => { void reload(); }, [reload]);
+  return { courses, loading, error, reload };
 }
 
 type QuestionDraft = { prompt: string; options: string[]; correct: number };
@@ -170,9 +193,14 @@ export function NewCourseWizard() {
 
   const addQuestion = () =>
     setQuestions((current) => [...current, { prompt: "", options: ["", "", "", ""], correct: 0 }]);
-  const canContinue =
-    step !== 0 ||
-    (courseName.trim() && centralTopic.trim() && subtopics.length >= 2 && Number(studentCount) > 0);
+  const questionsValid = questions.length > 0 && questions.every((question) =>
+    question.prompt.trim() && question.options.length >= 2 &&
+    question.options.every((option) => option.trim()) &&
+    Number.isInteger(question.correct) && question.correct >= 0 && question.correct < question.options.length
+  );
+  const canContinue = step === 0
+    ? Boolean(courseName.trim() && centralTopic.trim() && subtopics.length >= 2 && Number(studentCount) > 0)
+    : step === 1 ? questionsValid : true;
   const next = async () => {
     if (!canContinue) return;
     if (step < WIZARD_STEPS.length - 1) {
@@ -187,6 +215,7 @@ export function NewCourseWizard() {
         topics: [centralTopic.trim(), ...subtopics],
         material: "",
         questionVariants: Math.max(2, questions.length),
+        questions,
         tutor: {
           tone,
           language,
@@ -343,7 +372,7 @@ export function NewCourseWizard() {
               </Button>
               <Button type="button" variant="outline" onClick={proposeQuestions}>
                 <Sparkles />
-                Proponer preguntas
+                Insertar preguntas de ejemplo
               </Button>
             </div>
             {questions.map((question, questionIndex) => (
@@ -513,16 +542,19 @@ export function NewCourseWizard() {
 
 const TABS = ["Resumen", "Mapa de calor", "Alumnos", "Preguntas", "Recomendaciones"] as const;
 export function CourseDashboard() {
-  const { createdCourse } = usePrototype();
+  const { courses: savedCourses, loading, error } = useTeacherCourses();
   const { id: selectedId } = useParams({ from: "/teacher/course/$id" });
-  const courses = [
-    {
-      id: SAMPLE_CODE,
-      name: "Fundamentos de programación",
-      sessionCode: SAMPLE_CODE,
-      studentCount: 24,
-    },
-    ...(createdCourse && createdCourse.id !== SAMPLE_CODE ? [createdCourse] : []),
+  const demoCourse = {
+    id: SAMPLE_CODE,
+    name: "Fundamentos de programación",
+    sessionCode: SAMPLE_CODE,
+    studentCount: 24,
+    topics: ["Estructuras de control", "Condiciones", "Bucle for", "Bucle while"],
+    questions: [] as CourseRecord["questions"],
+  };
+  const courses: CourseRecord[] = [
+    demoCourse,
+    ...savedCourses.filter((course) => course.id !== SAMPLE_CODE),
   ];
   const course = courses.find((item) => item.id === selectedId) ?? courses[0]!;
   const [tab, setTab] = useState<(typeof TABS)[number]>("Resumen");
@@ -533,6 +565,8 @@ export function CourseDashboard() {
         <h1 className="mt-1 text-3xl font-bold text-foreground">Analítica de cursos</h1>
         <p className="mt-2">Selecciona un curso para revisar sus resultados.</p>
       </div>
+      {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+      {loading && <p role="status" className="mt-4 text-sm">Cargando cursos…</p>}
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {courses.map((item) => (
           <Link
@@ -549,7 +583,7 @@ export function CourseDashboard() {
                   <p className="mt-1 text-sm">Código {item.sessionCode}</p>
                 </div>
               </div>
-              <span className="text-sm text-muted-foreground">{item.studentCount} alumnos</span>
+              <span className="text-sm text-muted-foreground">{item.id === SAMPLE_CODE ? `${item.studentCount} demo` : `${item.studentCount} plazas`}</span>
             </div>
           </Link>
         ))}
@@ -580,14 +614,24 @@ export function CourseDashboard() {
         ))}
       </div>
       <div className="mt-8">
-        {tab === "Resumen" && <Summary />}
-        {tab === "Mapa de calor" && <Heatmap />}
-        {tab === "Alumnos" && <Students />}
-        {tab === "Preguntas" && <Questions />}
-        {tab === "Recomendaciones" && <Recommendations />}
+        {course.id === SAMPLE_CODE ? <>
+          {tab === "Resumen" && <Summary />}
+          {tab === "Mapa de calor" && <Heatmap />}
+          {tab === "Alumnos" && <Students />}
+          {tab === "Preguntas" && <Questions />}
+          {tab === "Recomendaciones" && <Recommendations />}
+        </> : <RealCourseTab tab={tab} course={course} />}
       </div>
     </section>
   );
+}
+
+function RealCourseTab({ tab, course }: { tab: (typeof TABS)[number]; course: CourseRecord }) {
+  if (tab === "Mapa de calor") return <div className="rounded-lg border border-border bg-card p-6"><h2 className="font-semibold text-foreground">Temas del curso</h2><p className="mt-1 text-sm">Los resultados aparecerán cuando haya respuestas registradas.</p><ul className="mt-4 list-disc space-y-2 pl-5">{course.topics.map((topic) => <li key={topic}>{topic}</li>)}</ul></div>;
+  if (tab === "Preguntas") return <div className="space-y-3">{course.questions.map((question, index) => <article key={`${index}-${question.prompt}`} className="rounded-lg border border-border bg-card p-5"><h3 className="font-medium text-foreground">{question.prompt}</h3><p className="mt-2 text-sm">{question.options.map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`).join(" · ")}</p><p className="mt-2 text-xs text-muted-foreground">Aún no hay estadísticas de respuestas.</p></article>)}</div>;
+  const title = tab === "Resumen" ? "Todavía no hay resultados" : tab === "Alumnos" ? "Aún no hay actividad de alumnos" : "Aún no hay datos suficientes para recomendar acciones";
+  const description = tab === "Resumen" ? "La participación, la ganancia pre/post y la conversión se calcularán a partir de las sesiones reales." : tab === "Alumnos" ? "El estado agregado se mostrará cuando los alumnos completen actividades." : "Las recomendaciones se presentarán como hipótesis cuando haya respuestas registradas.";
+  return <div className="rounded-lg border border-dashed border-border bg-card p-6"><h2 className="font-semibold text-foreground">{title}</h2><p className="mt-2 text-sm">{description}</p></div>;
 }
 function Summary() {
   return (

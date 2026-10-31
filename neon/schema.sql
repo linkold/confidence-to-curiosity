@@ -3,11 +3,15 @@ create table if not exists public.courses (
   name text not null,
   session_code text not null unique,
   topics jsonb not null default '[]'::jsonb,
+  questions jsonb not null default '[]'::jsonb,
   material text,
   question_variants integer not null default 2 check (question_variants >= 2),
   tutor_settings jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
+
+alter table public.courses
+  add column if not exists questions jsonb not null default '[]'::jsonb;
 
 create table if not exists public.learning_events (
   id bigint generated always as identity primary key,

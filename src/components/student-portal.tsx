@@ -47,7 +47,7 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
     }, 900);
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>("welcome");
-  const [selected, setSelected] = useState("B");
+  const [selected, setSelected] = useState<string | null>(null);
   const [confidence, setConfidence] = useState(5);
   const [retry, setRetry] = useState<{ question: Question; selected: string } | null>(null);
   const steps: Screen[] = ["welcome", "pre-test", "chat", "post-test", "progress"];
@@ -133,7 +133,7 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
             onNext={() => {
               setStatus("Backend: En espera.");
               setRetry(null);
-              setSelected("B");
+              setSelected(null);
               setConfidence(5);
               setCurrentScreen("welcome");
             }}
@@ -214,7 +214,7 @@ function PreTest({
   busy,
   onNext,
 }: {
-  selected: string;
+  selected: string | null;
   setSelected: (s: string) => void;
   confidence: number;
   setConfidence: (n: number) => void;
@@ -247,7 +247,7 @@ function PreTest({
           className="mt-3 w-full accent-primary"
         />
       </div>
-      <PrimaryBtn className="mt-8 w-full" disabled={busy} onClick={onNext}>
+      <PrimaryBtn className="mt-8 w-full" disabled={busy || !selected} onClick={onNext}>
         Enviar
       </PrimaryBtn>
     </div>
@@ -488,26 +488,10 @@ function Progress({ onNext }: { onNext: () => void }) {
       <CheckCircle2 className="h-24 w-24 text-success" />
       <p className="mt-6 text-sm text-primary">Paso 4 de 4</p>
       <h1 className="mt-2 text-3xl font-bold text-foreground">Mi progreso</h1>
-      <p className="mt-3">Así cambió tu desempeño después de trabajar con el tutor.</p>
-      <div className="mt-8 grid w-full gap-3 text-left sm:grid-cols-3">
-        <div className="rounded-lg bg-secondary p-4">
-          <p className="text-sm">Antes</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">25%</p>
-        </div>
-        <div className="rounded-lg bg-accent p-4">
-          <p className="text-sm">Después</p>
-          <p className="mt-1 text-2xl font-bold text-primary">88%</p>
-        </div>
-        <div className="rounded-lg bg-success/10 p-4">
-          <p className="text-sm">Calibración</p>
-          <p className="mt-1 text-2xl font-bold text-success">+2</p>
-        </div>
-      </div>
+      <p className="mt-3">Tu sesión quedó registrada. Los resultados aparecerán cuando se calculen con tus respuestas reales.</p>
       <div className="mt-8 flex w-full gap-3 rounded-lg border border-primary/40 bg-accent p-6 text-left">
         <Quote className="h-6 w-6 shrink-0 text-primary" />
-        <p className="italic text-foreground">
-          "El verdadero aprendizaje ocurre cuando la IA te hace pensar, no cuando piensa por ti."
-        </p>
+        <p className="italic text-foreground">El progreso se mostrará aquí cuando haya datos suficientes de tu sesión.</p>
       </div>
       <PrimaryBtn className="mt-8" onClick={onNext}>
         <RotateCcw className="h-5 w-5" />
