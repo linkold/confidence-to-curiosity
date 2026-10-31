@@ -20,6 +20,3 @@ create table if not exists public.learning_events (
 
 create index if not exists learning_events_session_code_idx on public.learning_events (session_code);
 create index if not exists learning_events_event_type_idx on public.learning_events (event_type);
-
-alter table public.courses enable row level security;
-alter table public.learning_events enable row level security;

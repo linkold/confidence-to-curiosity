@@ -9,6 +9,20 @@ async function readJson<T>(response: Response) {
   const contentType = response.headers.get("content-type") ?? "";
   const body = await response.text();
   if (!contentType.includes("application/json")) {
+    if (
+      response.status === 401 ||
+      response.status === 403 ||
+      body.includes("Protected by Vercel Authentication")
+    ) {
+      throw new Error(
+        "La API está protegida por Vercel Authentication. Desactiva Deployment Protection para este deployment o usa el dominio de producción autorizado.",
+      );
+    }
+    if (response.status >= 500) {
+      throw new Error(
+        `La función /api respondió ${response.status}. Revisa los logs de Vercel y verifica DATABASE_URL y GROQ_API_KEY.`,
+      );
+    }
     throw new Error(
       "La API no está disponible. Ejecuta el proyecto con `vercel dev` para activar las funciones /api.",
     );

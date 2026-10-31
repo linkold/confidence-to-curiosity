@@ -66,7 +66,7 @@ Ensure the UI is polished, responsive, and transitions smoothly between states. 
 
 The backend lives in [`api/chat.ts`](./api/chat.ts) and is deployed automatically as `/api/chat` by Vercel. It accepts `POST` requests with a `historial` array, calls Groq with a strict Spanish Socratic system prompt, and returns `{ respuesta }`.
 
-Copy [`.env.example`](./.env.example) to `.env.local` for local development. The API accepts either `GROQ_API_KEY` (recommended) or `GROQ_API`. Set the selected variable in Vercel under Settings → Environment Variables. Keep Groq and Supabase secret keys server-side; do not prefix them with `VITE_`. The Supabase variables are reserved for the persistence integration.
+Copy [`.env.example`](./.env.example) to `.env.local` for local development. The API accepts either `GROQ_API_KEY` (recommended) or `GROQ_API`. Set the selected variable in Vercel under Settings → Environment Variables. Keep Groq and the Neon `DATABASE_URL` server-side; do not prefix them with `VITE_`. Run `neon/schema.sql` in Neon before using persistence.
 
 This project was built with [Lovable](https://lovable.dev).
 

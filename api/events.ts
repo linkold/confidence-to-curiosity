@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "./_lib/supabase";
+import { getNeonClient } from "./_lib/neon";
 
 type VercelRequest = { method?: string; body?: unknown };
 type VercelResponse = { status: (code: number) => VercelResponse; json: (body: unknown) => void };
@@ -13,21 +13,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { data, error } = await getSupabaseServerClient()
-      .from("learning_events")
-      .insert({
-        session_code: body.sessionCode,
-        event_type: body.eventType,
-        alias: typeof body.alias === "string" ? body.alias : null,
-        payload: body.payload && typeof body.payload === "object" ? body.payload : {},
-      })
-      .select("id")
-      .single();
-
-    if (error) throw error;
-    return res.status(201).json({ id: data.id });
+    const sql = getNeonClient();
+    const rows = await sql`
+      INSERT INTO learning_events (session_code, event_type, alias, payload)
+      VALUES (
+        ${body.sessionCode},
+        ${body.eventType},
+        ${typeof body.alias === "string" ? body.alias : null},
+        ${JSON.stringify(body.payload && typeof body.payload === "object" ? body.payload : {})}::jsonb
+      )
+      RETURNING id
+    `;
+    const id = Number((rows[0] as { id?: string | number } | undefined)?.id);
+    if (!Number.isFinite(id)) throw new Error("Neon no devolvió el id del evento");
+    return res.status(201).json({ id });
   } catch (error) {
-    console.error("Error al guardar evento en Supabase:", error);
+    console.error("Error al guardar evento en Neon:", error);
     return res.status(502).json({ error: "No se pudo guardar el evento" });
   }
 }
