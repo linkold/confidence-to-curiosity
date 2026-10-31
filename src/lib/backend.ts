@@ -42,18 +42,26 @@ async function readJson<T>(response: Response) {
     }
     if (response.status >= 500) {
       throw new Error(
-        `La función /api respondió ${response.status}. Revisa los logs de Vercel y verifica DATABASE_URL (o POSTGRES_URL) y GROQ_API_KEY.`,
+        `La API respondió ${response.status} sin JSON. Revisa los logs de Vercel; al cargar cursos, comprueba DATABASE_URL/POSTGRES_URL y el esquema de Neon.`,
       );
     }
     throw new Error(
       "La API no está disponible. Ejecuta el proyecto con `vercel dev` para activar las funciones /api.",
     );
   }
+  let data: T & { error?: unknown };
   try {
-    return JSON.parse(body) as T;
+    data = JSON.parse(body) as T & { error?: unknown };
   } catch {
+    if (!response.ok) {
+      throw new Error(
+        `La API respondió ${response.status}. Revisa la configuración de Neon y los logs de Vercel.`,
+      );
+    }
     throw new Error("La API devolvió una respuesta inválida. Revisa la configuración del backend.");
   }
+  if (!response.ok && typeof data.error === "string") throw new Error(data.error);
+  return data;
 }
 
 export async function recordLearningEvent(event: EventInput) {

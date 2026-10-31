@@ -47,9 +47,17 @@ export async function invokeVercelHandler(handler: unknown, request: Request) {
     },
   };
 
-  await (handler as (req: HandlerRequest, res: HandlerResponse) => Promise<unknown>)(
-    vercelRequest,
-    vercelResponse,
-  );
+  try {
+    await (handler as (req: HandlerRequest, res: HandlerResponse) => Promise<unknown>)(
+      vercelRequest,
+      vercelResponse,
+    );
+  } catch (error) {
+    console.error(`Error inesperado en /api (${method}):`, error);
+    return Response.json(
+      { error: "Error interno de la API. Revisa los logs de Vercel." },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
+  }
   return new Response(JSON.stringify(responseBody ?? {}), { status: statusCode, headers });
 }

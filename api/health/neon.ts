@@ -1,4 +1,4 @@
-import { getNeonClient } from "../_lib/neon";
+import { getNeonClient } from "../_lib/neon.js";
 
 type VercelRequest = { method?: string };
 type VercelResponse = { status: (code: number) => VercelResponse; json: (body: unknown) => void };
