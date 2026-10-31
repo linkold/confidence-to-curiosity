@@ -17,7 +17,13 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { createCourse, listCourses, type CourseRecord } from "@/lib/backend";
+import {
+  createCourse,
+  getCourseActivity,
+  listCourses,
+  type CourseActivityEvent,
+  type CourseRecord,
+} from "@/lib/backend";
 
 const WIZARD_STEPS = ["Curso y temas", "Preguntas", "Tutor", "Publicar"];
 const SAMPLE_CODE = "847291";
@@ -703,6 +709,7 @@ export function CourseDashboard() {
 }
 
 function RealCourseTab({ tab, course }: { tab: (typeof TABS)[number]; course: CourseRecord }) {
+  const activity = useCourseActivity(course.sessionCode);
   if (tab === "Mapa de calor")
     return (
       <div className="rounded-lg border border-border bg-card p-6">
@@ -719,43 +726,244 @@ function RealCourseTab({ tab, course }: { tab: (typeof TABS)[number]; course: Co
     );
   if (tab === "Preguntas")
     return (
-      <div className="space-y-3">
+      <div className="space-y-4">
+        <QuestionTiming events={activity.events} loading={activity.loading} />
         {course.questions.map((question, index) => (
           <article
             key={`${index}-${question.prompt}`}
             className="rounded-lg border border-border bg-card p-5"
           >
-            <h3 className="font-medium text-foreground">{question.prompt}</h3>
+            <p className="text-xs text-primary">{question.subtopic}</p>
+            <h3 className="mt-1 font-medium text-foreground">{question.prompt}</h3>
             <p className="mt-2 text-sm">
               {question.options
                 .map((option, optionIndex) => `${String.fromCharCode(65 + optionIndex)}. ${option}`)
                 .join(" · ")}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Aún no hay estadísticas de respuestas.
-            </p>
           </article>
         ))}
       </div>
     );
+  if (tab === "Alumnos")
+    return (
+      <StudentStateTracker
+        events={activity.events}
+        loading={activity.loading}
+        error={activity.error}
+      />
+    );
   const title =
     tab === "Resumen"
       ? "Todavía no hay resultados"
-      : tab === "Alumnos"
-        ? "Aún no hay actividad de alumnos"
-        : "Aún no hay datos suficientes para recomendar acciones";
+      : "Aún no hay datos suficientes para recomendar acciones";
   const description =
     tab === "Resumen"
       ? "La participación, la ganancia pre/post y la conversión se calcularán a partir de las sesiones reales."
-      : tab === "Alumnos"
-        ? "El estado agregado se mostrará cuando los alumnos completen actividades."
-        : "Las recomendaciones se presentarán como hipótesis cuando haya respuestas registradas.";
+      : "Las recomendaciones se presentarán como hipótesis cuando haya respuestas registradas.";
   return (
     <div className="rounded-lg border border-dashed border-border bg-card p-6">
       <h2 className="font-semibold text-foreground">{title}</h2>
       <p className="mt-2 text-sm">{description}</p>
     </div>
   );
+}
+
+function useCourseActivity(sessionCode: string) {
+  const [events, setEvents] = useState<CourseActivityEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const data = await getCourseActivity(sessionCode);
+        if (mounted) {
+          setEvents(data);
+          setError("");
+        }
+      } catch (cause) {
+        if (mounted)
+          setError(cause instanceof Error ? cause.message : "No se pudo cargar actividad");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    void load();
+    const interval = window.setInterval(() => void load(), 15_000);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, [sessionCode]);
+  return { events, loading, error };
+}
+
+function StudentStateTracker({
+  events,
+  loading,
+  error,
+}: {
+  events: CourseActivityEvent[];
+  loading: boolean;
+  error: string;
+}) {
+  const latestByStudent = new Map<string, CourseActivityEvent>();
+  for (const event of events) {
+    if (event.eventType !== "student_state") continue;
+    const key = event.payload.studentId ?? event.alias ?? `student-${event.id}`;
+    latestByStudent.set(key, event);
+  }
+  const students = [...latestByStudent.values()].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
+  return (
+    <div className="space-y-4 rounded-lg border border-border bg-card p-6">
+      <div>
+        <h2 className="font-semibold text-foreground">Estado de los alumnos</h2>
+        <p className="mt-1 text-sm">
+          Actualización automática cada 15 segundos; activo significa actividad en el último minuto.
+        </p>
+      </div>
+      {loading && (
+        <p role="status" className="text-sm">
+          Cargando actividad…
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {!loading && students.length === 0 && (
+        <p className="text-sm">Aún no hay alumnos que hayan aceptado el consentimiento.</p>
+      )}
+      {students.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="py-3 pr-4">Alumno</th>
+                <th className="py-3 pr-4">Estado</th>
+                <th className="py-3">Última actividad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((event) => {
+                const ageMs = Date.now() - Date.parse(event.createdAt);
+                const state = event.payload.state ?? "unknown";
+                const label =
+                  state === "completed"
+                    ? "Completó"
+                    : state === "needs_support"
+                      ? "Finalizó · requiere refuerzo"
+                      : state === "pre-test"
+                        ? "Diagnóstico"
+                        : state === "chat"
+                          ? "Tutor socrático"
+                          : state === "post-test"
+                            ? "Post-test"
+                            : state;
+                const active = ageMs <= 60_000 && !["completed", "needs_support"].includes(state);
+                return (
+                  <tr
+                    key={event.payload.studentId ?? event.id}
+                    className="border-b border-border/60"
+                  >
+                    <td className="py-3 pr-4 font-medium text-foreground">
+                      {event.alias || "Alumno"}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs ${active ? "bg-success/10 text-success" : "bg-secondary text-muted-foreground"}`}
+                      >
+                        {active ? `${label} · activo` : label}
+                      </span>
+                    </td>
+                    <td className="py-3">{new Date(event.createdAt).toLocaleString()}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuestionTiming({ events, loading }: { events: CourseActivityEvent[]; loading: boolean }) {
+  const grouped = new Map<
+    string,
+    {
+      prompt: string;
+      phase: string;
+      totalMs: number;
+      count: number;
+      correct: number;
+      graded: number;
+    }
+  >();
+  for (const event of events) {
+    if (!["pre_test_submitted", "post_test_answer"].includes(event.eventType)) continue;
+    const elapsedMs = event.payload.elapsedMs;
+    if (typeof elapsedMs !== "number" || !Number.isFinite(elapsedMs)) continue;
+    const phase =
+      event.payload.phase ?? (event.eventType === "pre_test_submitted" ? "pre" : "post");
+    const prompt =
+      event.payload.questionPrompt ?? `Pregunta ${Number(event.payload.questionIndex ?? 0) + 1}`;
+    const key = `${phase}:${prompt}`;
+    const item = grouped.get(key) ?? { prompt, phase, totalMs: 0, count: 0, correct: 0, graded: 0 };
+    item.totalMs += elapsedMs;
+    item.count += 1;
+    if (typeof event.payload.correct === "boolean") {
+      item.graded += 1;
+      if (event.payload.correct) item.correct += 1;
+    }
+    grouped.set(key, item);
+  }
+  const rows = [...grouped.values()].sort(
+    (a, b) => a.phase.localeCompare(b.phase) || a.prompt.localeCompare(b.prompt),
+  );
+  return (
+    <div className="rounded-lg border border-border bg-card p-6">
+      <h2 className="font-semibold text-foreground">Tiempo promedio de respuesta</h2>
+      <p className="mt-1 text-sm">
+        Tiempo desde que aparece cada pregunta hasta que el alumno la envía.
+      </p>
+      {loading && (
+        <p role="status" className="mt-3 text-sm">
+          Cargando mediciones…
+        </p>
+      )}
+      {!loading && rows.length === 0 && (
+        <p className="mt-3 text-sm">Aún no hay respuestas con tiempos registrados.</p>
+      )}
+      <div className="mt-4 space-y-3">
+        {rows.map((row) => (
+          <article
+            key={`${row.phase}-${row.prompt}`}
+            className="rounded-md border border-border p-4"
+          >
+            <p className="text-xs text-primary">
+              {row.phase === "pre" ? "Diagnóstico" : "Post-test"} · {row.count} respuesta
+              {row.count === 1 ? "" : "s"}
+            </p>
+            <p className="mt-1 font-medium text-foreground">{row.prompt}</p>
+            <p className="mt-2 text-sm">
+              Promedio:{" "}
+              <strong className="text-foreground">{formatDuration(row.totalMs / row.count)}</strong>
+              {row.graded > 0 && ` · ${Math.round((row.correct / row.graded) * 100)}% correctas`}
+            </p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function formatDuration(milliseconds: number) {
+  const seconds = Math.round(milliseconds / 1000);
+  return seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
 }
 function Summary() {
   return (

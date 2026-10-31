@@ -26,6 +26,7 @@ export function StudentJoin() {
             try {
               const course = await verifyCourseSession(session);
               if (typeof window !== "undefined") {
+                sessionStorage.setItem("cognicheck:student-id", crypto.randomUUID());
                 sessionStorage.setItem("cognicheck:student-name", name.trim());
                 sessionStorage.setItem("cognicheck:course-name", course.name);
                 sessionStorage.setItem(

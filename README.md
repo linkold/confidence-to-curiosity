@@ -26,7 +26,10 @@ No uses prefijo `VITE_` para secretos. Las variables antiguas de Supabase ya no 
 - `GET /api/courses?sessionCode=...`: verifica un código de acceso.
 - `POST /api/courses`: crea un curso con temas, preguntas y configuración del tutor.
 - `POST /api/events`: registra eventos de aprendizaje.
+- `GET /api/events?sessionCode=...`: consulta estados y tiempos de respuesta del curso.
 - `GET /api/health/neon`: comprueba la conexión y el esquema de Neon.
+
+Tras aceptar el consentimiento, el alumno envía su estado de actividad cada 20 segundos. El panel del profesor actualiza estados cada 15 segundos y calcula tiempos medios entre la aparición y el envío de cada pregunta. Los eventos nuevos incluyen estos datos en `learning_events.payload`; no requieren cambios adicionales de esquema.
 
 El código `847291` identifica el único curso de demostración; sus métricas son ficticias y están aisladas de los cursos reales.
 

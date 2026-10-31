@@ -1,9 +1,48 @@
 import { getNeonClient } from "./_lib/neon.js";
 
-type VercelRequest = { method?: string; body?: unknown };
+type VercelRequest = {
+  method?: string;
+  body?: unknown;
+  query?: Record<string, string | string[] | undefined>;
+};
 type VercelResponse = { status: (code: number) => VercelResponse; json: (body: unknown) => void };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === "GET") {
+    const rawCode = req.query?.["sessionCode"];
+    const sessionCode = (Array.isArray(rawCode) ? rawCode[0] : rawCode)?.trim().toUpperCase();
+    if (!sessionCode) return res.status(400).json({ error: "sessionCode es obligatorio" });
+    try {
+      const sql = getNeonClient();
+      const rows = await sql`
+        SELECT id::text, event_type AS "eventType", alias,
+          CASE
+            WHEN event_type = 'student_state' THEN jsonb_build_object(
+              'studentId', payload->>'studentId', 'state', payload->>'state'
+            )
+            ELSE jsonb_build_object(
+              'studentId', payload->>'studentId', 'elapsedMs', payload->'elapsedMs',
+              'phase', payload->>'phase', 'questionIndex', payload->'questionIndex',
+              'questionPrompt', payload->>'questionPrompt', 'correct', payload->'correct'
+            )
+          END AS payload,
+          created_at AS "createdAt"
+        FROM public.learning_events
+        WHERE session_code = ${sessionCode}
+          AND event_type IN ('student_state', 'pre_test_submitted', 'post_test_answer')
+        ORDER BY created_at ASC
+      `;
+      return res.status(200).json({ events: rows });
+    } catch (error) {
+      console.error("Error al consultar actividad del curso:", error);
+      const databaseError = error as { code?: string };
+      return res.status(502).json({
+        error: "No se pudo cargar la actividad del curso",
+        code: databaseError.code ?? "NEON_ERROR",
+      });
+    }
+  }
+
   if (req.method !== "POST") return res.status(405).json({ error: "Método no permitido" });
 
   const body = req.body as

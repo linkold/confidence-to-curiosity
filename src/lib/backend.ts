@@ -5,6 +5,22 @@ type EventInput = {
   payload?: Record<string, unknown>;
 };
 
+export type CourseActivityEvent = {
+  id: string;
+  eventType: "student_state" | "pre_test_submitted" | "post_test_answer";
+  alias: string | null;
+  payload: {
+    studentId?: string;
+    state?: string;
+    elapsedMs?: number;
+    phase?: string;
+    questionIndex?: number;
+    questionPrompt?: string;
+    correct?: boolean | null;
+  };
+  createdAt: string;
+};
+
 export type CourseQuestion = {
   prompt: string;
   subtopic: string;
@@ -65,13 +81,29 @@ async function readJson<T>(response: Response) {
 }
 
 export async function recordLearningEvent(event: EventInput) {
+  let studentId: string | null = null;
+  if (typeof window !== "undefined") {
+    studentId = window.sessionStorage.getItem("cognicheck:student-id");
+  }
   const response = await fetch("/api/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(event),
+    body: JSON.stringify({
+      ...event,
+      payload: { ...event.payload, ...(studentId ? { studentId } : {}) },
+    }),
   });
   if (!response.ok) throw new Error("No se pudo registrar el evento");
   return readJson<{ id: number }>(response);
+}
+
+export async function getCourseActivity(sessionCode: string) {
+  const response = await fetch(`/api/events?sessionCode=${encodeURIComponent(sessionCode.trim())}`);
+  const data = await readJson<{ events?: CourseActivityEvent[]; error?: string }>(response);
+  if (!response.ok || !Array.isArray(data.events)) {
+    throw new Error(data.error ?? "No se pudo cargar la actividad del curso");
+  }
+  return data.events;
 }
 
 export async function createCourse(course: {

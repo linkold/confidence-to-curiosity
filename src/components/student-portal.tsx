@@ -47,6 +47,7 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
     }, 900);
   };
   const [currentScreen, setCurrentScreen] = useState<Screen>("welcome");
+  const [consented, setConsented] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [confidence, setConfidence] = useState(5);
   const [postTestIndex, setPostTestIndex] = useState(0);
@@ -82,6 +83,28 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
   }, []);
   const steps: Screen[] = ["welcome", "pre-test", "chat", "post-test", "progress"];
 
+  useEffect(() => {
+    if (!consented) return;
+    const state =
+      currentScreen === "progress"
+        ? student?.validated
+          ? "completed"
+          : "needs_support"
+        : currentScreen;
+    const reportState = () => {
+      const alias = sessionStorage.getItem("cognicheck:student-name") ?? student?.alias;
+      void recordLearningEvent({
+        sessionCode: sessionId,
+        eventType: "student_state",
+        ...(alias ? { alias } : {}),
+        payload: { state },
+      }).catch(console.error);
+    };
+    reportState();
+    const interval = window.setInterval(reportState, 20_000);
+    return () => window.clearInterval(interval);
+  }, [consented, currentScreen, sessionId, student?.alias, student?.validated]);
+
   return (
     <div className="bg-background text-muted-foreground">
       <div
@@ -106,6 +129,10 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
                   ? sessionStorage.getItem("cognicheck:student-name")
                   : null;
               const studentName = name?.trim() || "Alumno";
+              if (!sessionStorage.getItem("cognicheck:student-id")) {
+                sessionStorage.setItem("cognicheck:student-id", crypto.randomUUID());
+              }
+              setConsented(true);
               setStudent({ alias: studentName, validated: false });
               void recordLearningEvent({
                 sessionCode: sessionId,
@@ -124,12 +151,21 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
             confidence={confidence}
             setConfidence={setConfidence}
             busy={busy}
-            onNext={() => {
+            onNext={(elapsedMs) => {
               void recordLearningEvent({
                 sessionCode: sessionId,
                 eventType: "pre_test_submitted",
                 ...(student?.alias ? { alias: student.alias } : {}),
-                payload: { selected, confidence },
+                payload: {
+                  selected,
+                  confidence,
+                  correct: selected === "A",
+                  phase: "pre",
+                  questionIndex: 0,
+                  questionPrompt:
+                    "¿Cuál es la diferencia estructural principal entre un bucle while y un for?",
+                  elapsedMs,
+                },
               }).catch(console.error);
               transition("Diagnóstico registrado.", "chat");
             }}
@@ -187,6 +223,7 @@ export function StudentPortal({ sessionId = "847291" }: { sessionId?: string }) 
               setConfidence(5);
               setPostTestIndex(0);
               setPostTestRetries(0);
+              setConsented(false);
               setCurrentScreen("welcome");
             }}
           />
@@ -220,8 +257,9 @@ function Welcome({
         <p className="text-sm text-primary">Paso 0 de 4 · Sesión {sessionId}</p>
         <h1 className="mt-3 text-3xl font-bold text-foreground">Consentimiento</h1>
         <p className="mt-5 leading-7">
-          Tus respuestas, nivel de confianza, pistas y resultados pre/post se registrarán para medir
-          tu aprendizaje. Tu profesor verá el progreso agregado del curso.
+          Se registrarán tus respuestas, confianza, etapa de avance y tiempo de respuesta por
+          pregunta. Tu profesor podrá ver tu nombre, estado de sesión y tiempos, además de los
+          resultados agregados del curso.
         </p>
         <PrimaryBtn type="button" disabled={busy} className="mt-8 min-w-40" onClick={onNext}>
           Acepto
@@ -271,8 +309,9 @@ function PreTest({
   confidence: number;
   setConfidence: (n: number) => void;
   busy: boolean;
-  onNext: () => void;
+  onNext: (elapsedMs: number) => void;
 }) {
+  const startedAt = useRef(Date.now());
   return (
     <div className="mx-auto max-w-2xl rounded-lg border border-border bg-card p-6 sm:p-10">
       <h1 className="text-3xl font-bold text-foreground">Diagnóstico Inicial</h1>
@@ -299,7 +338,11 @@ function PreTest({
           className="mt-3 w-full accent-primary"
         />
       </div>
-      <PrimaryBtn className="mt-8 w-full" disabled={busy || !selected} onClick={onNext}>
+      <PrimaryBtn
+        className="mt-8 w-full"
+        disabled={busy || !selected}
+        onClick={() => onNext(Math.max(0, Date.now() - startedAt.current))}
+      >
         Enviar
       </PrimaryBtn>
     </div>
@@ -528,6 +571,7 @@ function PostTest({
   onRetry: (question: Question, selected: string, index: number) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const startedAt = useRef(Date.now());
   const question = FINAL_QUESTIONS[index];
   if (!question) return null;
   const submit = () => {
@@ -536,7 +580,14 @@ function PostTest({
       sessionCode: sessionId,
       eventType: "post_test_answer",
       ...(alias ? { alias } : {}),
-      payload: { questionIndex: index, selected, correct: selected === question.correct },
+      payload: {
+        questionIndex: index,
+        selected,
+        correct: selected === question.correct,
+        phase: "post",
+        questionPrompt: question.prompt,
+        elapsedMs: Math.max(0, Date.now() - startedAt.current),
+      },
     }).catch(console.error);
     const result = assessAnswer(index, selected);
     if (result === "retry") {
