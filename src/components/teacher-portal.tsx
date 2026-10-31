@@ -1,5 +1,6 @@
 import { Link, Outlet, useNavigate } from "@tanstack/react-router";
 import {
+  AlertCircle,
   Activity,
   ArrowRight,
   BarChart3,
@@ -139,6 +140,7 @@ export function NewCourseWizard() {
   const [language, setLanguage] = useState("Español");
   const [maxHints, setMaxHints] = useState(3);
   const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState("");
 
   const addSubtopic = () => {
     const value = newSubtopic.trim();
@@ -178,6 +180,7 @@ export function NewCourseWizard() {
       return;
     }
     setPublishing(true);
+    setPublishError("");
     try {
       const course = await createCourse({
         name: courseName.trim(),
@@ -201,6 +204,9 @@ export function NewCourseWizard() {
       navigate({ to: "/teacher/course/$id", params: { id: course.id } });
     } catch (error) {
       console.error("No se pudo publicar el curso:", error);
+      setPublishError(
+        error instanceof Error ? error.message : "No se pudo verificar el curso creado",
+      );
     } finally {
       setPublishing(false);
     }
@@ -228,6 +234,15 @@ export function NewCourseWizard() {
           </div>
         ))}
       </div>
+      {publishError && (
+        <div
+          role="alert"
+          className="mt-6 flex gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+        >
+          <AlertCircle className="size-5 shrink-0" />
+          <p>{publishError}</p>
+        </div>
+      )}
       <div className="mt-10 rounded-lg border border-border bg-card p-6 sm:p-8">
         {step === 0 && (
           <div className="space-y-6">

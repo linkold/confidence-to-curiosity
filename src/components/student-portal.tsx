@@ -319,6 +319,16 @@ function Chat({
     } catch (error) {
       console.error("Error al consultar el tutor socrático:", error);
       setStatus("Backend: No se pudo consultar el tutor socrático.");
+      setMsgs((m) => [
+        ...m,
+        {
+          role: "ai",
+          text:
+            error instanceof Error && /modelo|disponible|not.?found|access/i.test(error.message)
+              ? "El modelo del tutor socrático no está disponible por el momento. Intenta nuevamente más tarde o verifica la configuración de GROQ_MODEL."
+              : "No pude consultar al tutor socrático en este momento. Intenta nuevamente.",
+        },
+      ]);
       setTyping(false);
     }
   };

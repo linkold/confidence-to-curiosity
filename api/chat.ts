@@ -70,6 +70,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ respuesta });
   } catch (error) {
     console.error("Error al consultar Groq:", error);
-    return res.status(502).json({ error: "No se pudo consultar el tutor socrático" });
+    const message = error instanceof Error ? error.message : "";
+    const modelUnavailable = /model|not.?found|access|permission/i.test(message);
+    return res.status(modelUnavailable ? 503 : 502).json({
+      error: modelUnavailable
+        ? "El modelo del tutor socrático no está disponible por el momento"
+        : "No se pudo consultar el tutor socrático",
+    });
   }
 }

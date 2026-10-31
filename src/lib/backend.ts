@@ -27,7 +27,31 @@ export async function createCourse(course: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(course),
   });
-  const data = (await response.json()) as { id?: string; sessionCode?: string; error?: string };
-  if (!response.ok || !data.id) throw new Error(data.error ?? "No se pudo crear el curso");
-  return data as { id: string; sessionCode: string };
+  const data = (await response.json()) as {
+    id?: string;
+    sessionCode?: string;
+    verified?: boolean;
+    error?: string;
+  };
+  if (!response.ok || !data.id || !data.sessionCode || data.verified !== true) {
+    throw new Error(data.error ?? "No se pudo verificar el curso creado");
+  }
+  return data as { id: string; sessionCode: string; verified: true };
+}
+
+export async function verifyCourseSession(sessionCode: string) {
+  const response = await fetch(
+    `/api/courses?sessionCode=${encodeURIComponent(sessionCode.trim())}`,
+  );
+  const data = (await response.json()) as {
+    id?: string;
+    name?: string;
+    sessionCode?: string;
+    verified?: boolean;
+    error?: string;
+  };
+  if (!response.ok || !data.id || !data.name || data.verified !== true) {
+    throw new Error(data.error ?? "No se pudo verificar el código del curso");
+  }
+  return data as { id: string; name: string; sessionCode: string; verified: true; demo?: boolean };
 }

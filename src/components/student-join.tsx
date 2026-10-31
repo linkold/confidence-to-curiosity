@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, LockKeyhole } from "lucide-react";
+import { AlertCircle, ArrowRight, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { verifyCourseSession } from "@/lib/backend";
 
 export function StudentJoin() {
   const navigate = useNavigate();
   const [session, setSession] = useState("");
   const [name, setName] = useState("");
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
   return (
     <section className="mx-auto max-w-xl px-5 py-12">
       <div className="rounded-lg border border-border bg-card p-6 sm:p-10">
@@ -15,12 +18,22 @@ export function StudentJoin() {
         <p className="mt-3">Ingresa el código que te compartió tu profesor.</p>
         <form
           className="mt-8 space-y-5"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
-            if (session.trim() && name.trim()) {
-              if (typeof window !== "undefined")
+            if (!session.trim() || !name.trim()) return;
+            setError("");
+            setChecking(true);
+            try {
+              const course = await verifyCourseSession(session);
+              if (typeof window !== "undefined") {
                 sessionStorage.setItem("cognicheck:student-name", name.trim());
-              navigate({ to: "/s/$id", params: { id: session.trim() } });
+                sessionStorage.setItem("cognicheck:course-name", course.name);
+              }
+              navigate({ to: "/s/$id", params: { id: course.sessionCode } });
+            } catch (error) {
+              setError(error instanceof Error ? error.message : "No se pudo validar el curso");
+            } finally {
+              setChecking(false);
             }
           }}
         >
@@ -54,8 +67,17 @@ export function StudentJoin() {
             <LockKeyhole className="size-5 shrink-0 text-primary" />
             <p>Antes de comenzar te explicaremos qué datos de aprendizaje se registran.</p>
           </div>
-          <Button type="submit" className="w-full">
-            Continuar <ArrowRight />
+          {error && (
+            <div
+              role="alert"
+              className="flex gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+            >
+              <AlertCircle className="size-5 shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+          <Button type="submit" className="w-full" disabled={checking}>
+            {checking ? "Verificando curso..." : "Continuar"} {!checking && <ArrowRight />}
           </Button>
         </form>
       </div>
