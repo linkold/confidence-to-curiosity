@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useParams } from "@tanstack/react-router";
 import {
   AlertCircle,
   Activity,
@@ -514,10 +514,46 @@ export function NewCourseWizard() {
 const TABS = ["Resumen", "Mapa de calor", "Alumnos", "Preguntas", "Recomendaciones"] as const;
 export function CourseDashboard() {
   const { createdCourse } = usePrototype();
-  const course = createdCourse ?? { name: "Fundamentos de programación", sessionCode: SAMPLE_CODE };
+  const { id: selectedId } = useParams({ from: "/teacher/course/$id" });
+  const courses = [
+    {
+      id: SAMPLE_CODE,
+      name: "Fundamentos de programación",
+      sessionCode: SAMPLE_CODE,
+      studentCount: 24,
+    },
+    ...(createdCourse && createdCourse.id !== SAMPLE_CODE ? [createdCourse] : []),
+  ];
+  const course = courses.find((item) => item.id === selectedId) ?? courses[0]!;
   const [tab, setTab] = useState<(typeof TABS)[number]>("Resumen");
   return (
     <section>
+      <div>
+        <p className="text-sm text-primary">Espacio del profesor</p>
+        <h1 className="mt-1 text-3xl font-bold text-foreground">Analítica de cursos</h1>
+        <p className="mt-2">Selecciona un curso para revisar sus resultados.</p>
+      </div>
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {courses.map((item) => (
+          <Link
+            key={item.id}
+            to="/teacher/course/$id"
+            params={{ id: item.id }}
+            className={`rounded-lg border bg-card p-5 transition hover:border-primary/60 hover:shadow-glow ${item.id === course.id ? "border-primary ring-1 ring-primary/30" : "border-border"}`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex gap-3">
+                <BarChart3 className="mt-1 size-5 text-primary" />
+                <div>
+                  <h2 className="font-semibold text-foreground">{item.name}</h2>
+                  <p className="mt-1 text-sm">Código {item.sessionCode}</p>
+                </div>
+              </div>
+              <span className="text-sm text-muted-foreground">{item.studentCount} alumnos</span>
+            </div>
+          </Link>
+        ))}
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm text-primary">Curso · {course.sessionCode}</p>
